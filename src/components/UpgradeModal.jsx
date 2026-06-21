@@ -46,6 +46,11 @@ export async function activatePlan(plan, user, billingCycle = 'monthly') {
   }
 }
 
+const PLAN_CODES_INTL = {
+  pro:     { monthly: 'PLN_w7vdg84sydhpgng', yearly: 'PLN_hl43el1s4z27ji1' },
+  premium: { monthly: 'PLN_0kvnzsm4kt4ul3e', yearly: 'PLN_zb35zn0dhc3fo9q' },
+};
+
 export default function UpgradeModal({ open, onClose, user, highlight = 'pro' }) {
   const [yearly, setYearly]         = useState(false);
   const [loading, setLoading]       = useState({});
@@ -66,14 +71,14 @@ export default function UpgradeModal({ open, onClose, user, highlight = 'pro' })
     if (!user) { onClose(); navigate('/register'); return; }
 
     const isNG      = user?.vendor?.country === 'NG';
-    // NGN users get a recurring plan code; international users get a one-time NGN charge (Option A)
+    // NGN users: recurring NGN plan codes; international: recurring INTL NGN plan codes
     const planCode  = isNG
       ? (yearly ? plan.paystackYearlyPlanCode : plan.paystackMonthlyPlanCode)
-      : null;
+      : (yearly ? PLAN_CODES_INTL[plan.id]?.yearly : PLAN_CODES_INTL[plan.id]?.monthly);
     const displayAmount  = yearly ? plan.yearlyPrice : plan.monthlyPrice;
     const chargeAmount   = getChargeAmountNGN(displayAmount, isNG);
 
-    if (isNG && !planCode) {
+    if (!planCode) {
       toast.error('Payment setup in progress. Contact support to upgrade.');
       return;
     }

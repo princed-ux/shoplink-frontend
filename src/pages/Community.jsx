@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
-import { 
-  Users, Sparkles, MessageCircle, TrendingUp, 
-  ShieldCheck, Heart, ArrowRight, Zap, Globe
+import {
+  Users, MessageCircle, TrendingUp,
+  ShieldCheck, Heart, Globe
 } from 'lucide-react';
 import Footer from '../components/Footer';
+import shopLinkLogo from '../assets/logo.png';
 
 export default function Community() {
   const [chatStep, setChatStep] = useState(0);
@@ -51,15 +52,17 @@ export default function Community() {
           </h1>
           
           <p className="text-lg text-slate-500 dark:text-slate-400 font-medium max-w-2xl mx-auto leading-relaxed mb-10">
-            Join thousands of Nigerian hustlers, creators, and business owners in our private community. Share sales strategies, find reliable delivery partners, and get direct support from the ShopLink team.
+            Follow our official channel and stay ahead. Get exclusive tips, product updates, and growth strategies dropped directly from the ShopLink team.
           </p>
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-            <a 
-              href="#" 
+            <a
+              href="https://whatsapp.com/channel/0029VbCiiq3CXC3QgRFMg414"
+              target="_blank"
+              rel="noopener noreferrer"
               className="w-full sm:w-auto bg-[#25D366] hover:bg-[#1EBE5C] text-white px-8 py-4 rounded-2xl font-black uppercase tracking-widest text-sm flex items-center justify-center gap-3 transition-all shadow-lg shadow-[#25D366]/30 hover:-translate-y-1 active:scale-95 group"
             >
-              <MessageCircle size={18} className="group-hover:animate-bounce" /> Join WhatsApp Group
+              <MessageCircle size={18} className="group-hover:animate-bounce" /> Follow our Channel
             </a>
             <p className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" /> 100% Free
@@ -68,67 +71,80 @@ export default function Community() {
         </div>
       </section>
 
-      {/* --- LIVE CHAT MOCKUP SECTION --- */}
+      {/* --- CHANNEL MOCKUP SECTION --- */}
       <section className="px-6 py-12 max-w-5xl mx-auto relative z-10">
         <div className="bg-white dark:bg-slate-900/50 rounded-[3rem] p-4 sm:p-8 lg:p-12 border border-slate-200 dark:border-slate-800/60 shadow-2xl relative overflow-hidden animate-in slide-in-from-bottom-12 fade-in duration-1000 delay-200">
           <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/5 blur-3xl rounded-full pointer-events-none" />
-          
+
           <div className="text-center mb-10 relative z-10">
             <h2 className="text-2xl lg:text-3xl font-black text-slate-900 dark:text-white mb-2">A sneak peek inside 👀</h2>
-            <p className="text-slate-500 dark:text-slate-400 font-medium text-sm">Real conversations happening right now.</p>
+            <p className="text-slate-500 dark:text-slate-400 font-medium text-sm">Exclusive updates dropped straight from us.</p>
           </div>
 
-          {/* Fake Group Chat Window */}
+          {/* WhatsApp Channel Window */}
           <div className="max-w-2xl mx-auto bg-[#EFE7DD] dark:bg-[#0b141a] rounded-3xl overflow-hidden shadow-inner border border-slate-300 dark:border-slate-800 flex flex-col relative z-10">
-            {/* Header */}
-            <div className="bg-[#075e54] dark:bg-[#202c33] text-white p-4 flex items-center gap-4 z-10 shadow-sm">
-              <div className="relative">
-                <div className="w-12 h-12 bg-emerald-500 rounded-full flex items-center justify-center border-2 border-white/20">
-                  <Users size={20} className="text-white" />
-                </div>
-                <div className="absolute -bottom-1 -right-1 bg-green-500 w-4 h-4 rounded-full border-2 border-[#202c33]" />
+
+            {/* Channel Header */}
+            <div className="bg-[#075e54] dark:bg-[#202c33] text-white p-4 flex items-center gap-4 shadow-sm">
+              <div className="w-12 h-12 bg-emerald-500 rounded-full flex items-center justify-center border-2 border-white/20 flex-shrink-0 overflow-hidden">
+                <img src={shopLinkLogo} alt="ShopLink" className="w-7 h-7 object-contain brightness-0 invert" />
               </div>
-              <div>
-                <p className="font-bold">ShopLink VIP Vendors 🚀</p>
-                <p className="text-[10px] text-white/70">Sarah, Chidi, Admin, You + 4,208 others</p>
+              <div className="flex-1 min-w-0">
+                <p className="font-bold truncate">ShopLink.vi 🏪</p>
+                <p className="text-[10px] text-white/70">Official Channel · 4,208 followers</p>
               </div>
+              <div className="text-[10px] bg-white/10 rounded-full px-3 py-1 font-bold">Follow</div>
             </div>
 
-            {/* Chat Messages */}
-            <div className="p-4 sm:p-6 flex flex-col gap-4 relative overflow-hidden h-[380px]">
-              <div className="absolute inset-0 opacity-5 pointer-events-none" style={{ backgroundImage: "url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png')" }} />
-              
-              {/* Message 1 */}
-              <div className="flex items-start gap-2 max-w-[85%] relative z-10">
-                <img src="https://ui-avatars.com/api/?name=Sarah+Bakes&background=f472b6&color=fff" className="w-8 h-8 rounded-full flex-shrink-0 mt-1" alt="Sarah" />
-                <div className="bg-white dark:bg-[#202c33] p-3 rounded-2xl rounded-tl-none shadow-sm">
-                  <p className="text-[10px] font-bold text-pink-500 mb-1">Sarah (SweetTooth NG)</p>
-                  <p className="text-sm text-slate-800 dark:text-slate-200">Guys! Just got 5 orders in the last hour since I shared my ShopLink on TikTok! 😭🔥 The automated receipts are a lifesaver.</p>
+            {/* Channel Messages */}
+            <div className="p-4 sm:p-5 flex flex-col gap-5 overflow-hidden" style={{ minHeight: 360 }}>
+
+              {/* Post 1 */}
+              <div className="flex flex-col gap-2 relative z-10">
+                <div className="flex items-center gap-2 mb-1">
+                  <div className="w-7 h-7 bg-emerald-500 rounded-full flex items-center justify-center overflow-hidden flex-shrink-0">
+                    <img src={shopLinkLogo} alt="ShopLink" className="w-4 h-4 object-contain brightness-0 invert" />
+                  </div>
+                  <span className="text-[11px] font-black text-emerald-700 dark:text-emerald-400">ShopLink.vi</span>
+                  <span className="text-[10px] text-slate-400 dark:text-slate-500">· 2h ago</span>
+                </div>
+                <div className="bg-white dark:bg-[#202c33] p-4 rounded-2xl rounded-tl-none shadow-sm">
+                  <p className="text-sm text-slate-800 dark:text-slate-200 leading-relaxed">
+                    🚀 <strong>New Feature Drop!</strong> Bulk Product Import is now live for Premium users. Upload your entire catalogue with a single CSV file — no more adding products one by one!
+                  </p>
+                  <p className="text-xs text-slate-400 dark:text-slate-500 mt-2 font-medium">Upgrade in your dashboard to unlock it. 🔓</p>
+                </div>
+                <div className={`flex gap-2 transition-all duration-700 ${chatStep >= 1 ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-3'}`}>
+                  {[['🔥', 847], ['❤️', 524], ['🎉', 312]].map(([emoji, base], i) => (
+                    <div key={i} className="flex items-center gap-1 bg-white dark:bg-[#202c33] rounded-full px-3 py-1.5 shadow-sm text-xs font-bold text-slate-700 dark:text-slate-200 border border-slate-100 dark:border-slate-700">
+                      <span>{emoji}</span>
+                      <span>{chatStep >= 2 ? (base + Math.floor(i * 13 * chatStep)) : base}</span>
+                    </div>
+                  ))}
                 </div>
               </div>
 
-              {/* Message 2 */}
-              <div className={`flex items-start gap-2 max-w-[85%] relative z-10 transition-all duration-500 transform ${chatStep >= 1 ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}>
-                <img src="https://ui-avatars.com/api/?name=Chidi+Tech&background=3b82f6&color=fff" className="w-8 h-8 rounded-full flex-shrink-0 mt-1" alt="Chidi" />
-                <div className="bg-white dark:bg-[#202c33] p-3 rounded-2xl rounded-tl-none shadow-sm">
-                  <p className="text-[10px] font-bold text-blue-500 mb-1">Chidi (GadgetHub)</p>
-                  <p className="text-sm text-slate-800 dark:text-slate-200">That's massive! Congrats Sarah! Btw, does anyone have a reliable dispatch rider for the Island? My guy is delaying.</p>
+              {/* Post 2 */}
+              <div className={`flex flex-col gap-2 relative z-10 transition-all duration-700 ${chatStep >= 1 ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-6'}`}>
+                <div className="flex items-center gap-2 mb-1">
+                  <div className="w-7 h-7 bg-emerald-500 rounded-full flex items-center justify-center overflow-hidden flex-shrink-0">
+                    <img src={shopLinkLogo} alt="ShopLink" className="w-4 h-4 object-contain brightness-0 invert" />
+                  </div>
+                  <span className="text-[11px] font-black text-emerald-700 dark:text-emerald-400">ShopLink.vi</span>
+                  <span className="text-[10px] text-slate-400 dark:text-slate-500">· Yesterday</span>
                 </div>
-              </div>
-
-              {/* Message 3 */}
-              <div className={`flex items-start gap-2 max-w-[85%] relative z-10 transition-all duration-500 transform ${chatStep >= 2 ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}>
-                <img src="https://ui-avatars.com/api/?name=Admin+ShopLink&background=10b981&color=fff" className="w-8 h-8 rounded-full flex-shrink-0 mt-1 border-2 border-emerald-500" alt="Admin" />
-                <div className="bg-white dark:bg-[#202c33] p-3 rounded-2xl rounded-tl-none shadow-sm">
-                  <p className="text-[10px] font-black text-emerald-500 flex items-center gap-1 mb-1"><ShieldCheck size={10} /> ShopLink Admin</p>
-                  <p className="text-sm text-slate-800 dark:text-slate-200">Chidi, check the pinned messages at the top! We verified a list of 10 logistics companies for Lagos last week. 📦</p>
+                <div className="bg-white dark:bg-[#202c33] p-4 rounded-2xl rounded-tl-none shadow-sm">
+                  <p className="text-sm text-slate-800 dark:text-slate-200 leading-relaxed">
+                    💡 <strong>Growth tip:</strong> Vendors who share their ShopLink in their WhatsApp Status every morning are seeing up to <strong>3× more store visits</strong>. Takes 10 seconds. Try it today!
+                  </p>
                 </div>
-              </div>
-
-              {/* Message 4 (User's hypothetical reply) */}
-              <div className={`ml-auto max-w-[85%] relative z-10 transition-all duration-500 transform ${chatStep >= 3 ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}>
-                <div className="bg-[#DCF8C6] dark:bg-[#005c4b] p-3 rounded-2xl rounded-tr-none shadow-sm">
-                  <p className="text-sm text-slate-800 dark:text-white">This group is actually so helpful. Glad I joined!</p>
+                <div className={`flex gap-2 transition-all duration-700 delay-300 ${chatStep >= 2 ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-3'}`}>
+                  {[['👍', 1204], ['❤️', 893], ['😍', 445]].map(([emoji, base], i) => (
+                    <div key={i} className="flex items-center gap-1 bg-white dark:bg-[#202c33] rounded-full px-3 py-1.5 shadow-sm text-xs font-bold text-slate-700 dark:text-slate-200 border border-slate-100 dark:border-slate-700">
+                      <span>{emoji}</span>
+                      <span>{chatStep >= 3 ? (base + Math.floor(i * 9 * chatStep)) : base}</span>
+                    </div>
+                  ))}
                 </div>
               </div>
 
@@ -216,11 +232,13 @@ export default function Community() {
               Surround yourself with people who understand the hustle. Get answers, get motivated, and grow your sales.
             </p>
             
-            <a 
-              href="#" 
+            <a
+              href="https://whatsapp.com/channel/0029VbCiiq3CXC3QgRFMg414"
+              target="_blank"
+              rel="noopener noreferrer"
               className="inline-flex items-center justify-center gap-3 bg-[#25D366] text-white px-10 py-5 rounded-2xl font-black uppercase tracking-widest text-sm hover:bg-[#1EBE5C] transition-all shadow-lg shadow-[#25D366]/30 hover:-translate-y-1 w-full sm:w-auto active:scale-95"
             >
-              <MessageCircle size={18} /> Join WhatsApp Group
+              <MessageCircle size={18} /> Follow our Channel
             </a>
           </div>
         </div>

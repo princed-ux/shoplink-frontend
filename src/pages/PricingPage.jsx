@@ -11,6 +11,11 @@ import { supabase } from '../supabaseClient';
 import { toast } from 'react-hot-toast';
 import { usePaystackPayment } from 'react-paystack';
 
+const PLAN_CODES_INTL = {
+  pro:     { monthly: 'PLN_w7vdg84sydhpgng', yearly: 'PLN_hl43el1s4z27ji1' },
+  premium: { monthly: 'PLN_0kvnzsm4kt4ul3e', yearly: 'PLN_zb35zn0dhc3fo9q' },
+};
+
 export default function PricingPage() {
   const [yearly, setYearly]           = useState(false);
   const [user, setUser]               = useState(null);
@@ -51,12 +56,14 @@ export default function PricingPage() {
     if (!user) { navigate('/register'); return; }
 
     const planPricing   = prices[plan.id] || {};
-    // NGN users get recurring plan code; international get one-time NGN charge (Option A)
-    const planCode      = isNG ? (yearly ? plan.paystackYearlyPlanCode : plan.paystackMonthlyPlanCode) : null;
+    // NGN users: recurring NGN plan codes; international: recurring INTL NGN plan codes
+    const planCode      = isNG
+      ? (yearly ? plan.paystackYearlyPlanCode : plan.paystackMonthlyPlanCode)
+      : (yearly ? PLAN_CODES_INTL[plan.id]?.yearly : PLAN_CODES_INTL[plan.id]?.monthly);
     const displayAmount = yearly ? (planPricing.yearly || plan.yearlyPrice) : (planPricing.monthly || plan.monthlyPrice);
     const chargeAmount  = getChargeAmountNGN(displayAmount, isNG);
 
-    if (isNG && !planCode) {
+    if (!planCode) {
       toast.error('Payment setup in progress. Contact support to upgrade.');
       return;
     }

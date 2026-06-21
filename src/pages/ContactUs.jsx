@@ -1,7 +1,8 @@
-import { useState, useRef } from "react";
-import { Mail, Send, Phone, MapPin, ArrowRight } from "lucide-react";
+import { useState, useRef, useEffect } from "react";
+import { Mail, MapPin, ChevronDown, Send } from "lucide-react";
 import { toast } from "react-hot-toast";
 import Footer from "../components/Footer";
+import { Helmet } from "react-helmet-async";
 
 const WhatsAppIcon = ({ className }) => (
   <svg viewBox="0 0 24 24" className={className} fill="currentColor">
@@ -9,63 +10,60 @@ const WhatsAppIcon = ({ className }) => (
   </svg>
 );
 
-export default function ContactUs() {
-  const [formData, setFormData] = useState({
-    name: "",
-    email: "",
-    subject: "",
-    message: "",
-  });
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const formRef = useRef(null);
+const SUBJECTS = [
+  "Build an App or Website for Me",
+  "Partnership or Collaboration",
+  "Press & Media Inquiry",
+  "Feedback or Suggestion",
+  "General Inquiry",
+  "Other",
+];
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
-  };
+export default function ContactUs() {
+  const [formData, setFormData] = useState({ name: "", email: "", subject: "", message: "" });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const dropdownRef = useRef(null);
+
+  useEffect(() => { window.scrollTo(0, 0); }, []);
+
+  useEffect(() => {
+    if (!isDropdownOpen) return;
+    const handler = (e) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) setIsDropdownOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [isDropdownOpen]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-
-    if (
-      !formData.name ||
-      !formData.email ||
-      !formData.subject ||
-      !formData.message
-    ) {
-      return toast.error("Please fill in all fields");
+    if (!formData.name || !formData.email || !formData.subject || !formData.message) {
+      return toast.error("Please fill in all fields.");
     }
-
     setIsSubmitting(true);
-
     try {
-      const response = await fetch("https://api.web3forms.com/submit", {
+      const res = await fetch("https://api.web3forms.com/submit", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json",
-        },
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
         body: JSON.stringify({
           access_key: "761fea19-1274-4563-b404-00985d84532d",
           name: formData.name,
           email: formData.email,
-          subject: `ShopLinkVi Contact: ${formData.subject}`,
+          subject: `ShopLinkVi Contact: [${formData.subject}] from ${formData.name}`,
           message: formData.message,
           from_name: "ShopLinkVi Contact Form",
         }),
       });
-
-      const result = await response.json();
-
+      const result = await res.json();
       if (result.success) {
         setFormData({ name: "", email: "", subject: "", message: "" });
-        toast.success("Message sent successfully! We'll get back to you soon.");
+        toast.success("Message sent! We'll get back to you soon.");
       } else {
-        toast.error("Failed to send message. Please try again.");
+        toast.error("Failed to send. Please try again.");
       }
-    } catch (error) {
-      console.error("Contact form error:", error);
-      toast.error("An error occurred. Please try again later.");
+    } catch {
+      toast.error("Network error. Check your connection and try again.");
     } finally {
       setIsSubmitting(false);
     }
@@ -73,48 +71,52 @@ export default function ContactUs() {
 
   return (
     <div className="min-h-screen bg-white dark:bg-slate-950 transition-colors duration-300">
+      <Helmet>
+        <title>Contact Us — ShopLink.vi</title>
+        <meta name="description" content="Get in touch with the ShopLink.vi team." />
+      </Helmet>
+
+      {/* Hero banner */}
       <div className="relative overflow-hidden bg-gradient-to-br from-emerald-500 to-emerald-600 dark:from-emerald-700 dark:to-emerald-900 py-20">
         <div className="absolute inset-0 opacity-10">
-          <div className="absolute top-0 left-1/4 w-96 h-96 bg-white rounded-full mix-blend-multiply filter blur-3xl"></div>
-          <div className="absolute -bottom-8 right-1/4 w-96 h-96 bg-white rounded-full mix-blend-multiply filter blur-3xl"></div>
+          <div className="absolute top-0 left-1/4 w-96 h-96 bg-white rounded-full mix-blend-multiply filter blur-3xl" />
+          <div className="absolute -bottom-8 right-1/4 w-96 h-96 bg-white rounded-full mix-blend-multiply filter blur-3xl" />
         </div>
-
-        <div className="relative max-w-6xl mx-auto px-6 sm:px-8 lg:px-10 text-center">
-          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black text-white tracking-tighter mb-6">
+        <div className="relative max-w-6xl mx-auto px-6 text-center">
+          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black text-white tracking-tighter mb-4">
             Get in Touch
           </h1>
-          <p className="text-lg sm:text-xl text-white/90 font-medium max-w-2xl mx-auto">
-            Have a question or suggestion? We'd love to hear from you.
+          <p className="text-lg text-white/90 font-medium max-w-xl mx-auto">
+            Have a question or idea? We'd love to hear from you.
           </p>
         </div>
       </div>
 
+      {/* Two-column layout */}
       <div className="max-w-6xl mx-auto px-6 sm:px-8 lg:px-10 py-20">
         <div className="grid md:grid-cols-2 gap-12 items-start">
+
+          {/* Left — Contact info */}
           <div className="space-y-8">
             <div>
-              <h2 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white tracking-tighter mb-6">
+              <h2 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white tracking-tighter mb-3">
                 Contact Info
               </h2>
-              <p className="text-slate-600 dark:text-slate-400 font-medium text-sm leading-relaxed mb-8">
-                Reach out through any of these channels.
+              <p className="text-slate-500 dark:text-slate-400 font-medium text-sm leading-relaxed">
+                Reach out through any of these channels and we'll respond within 24 hours.
               </p>
             </div>
 
-            <div className="space-y-5">
+            <div className="space-y-4">
               <div className="flex gap-4 p-5 rounded-2xl bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-100 dark:border-emerald-500/20">
                 <div className="flex-shrink-0 w-12 h-12 rounded-xl bg-emerald-500 flex items-center justify-center">
                   <Mail size={20} className="text-white" />
                 </div>
                 <div>
-                  <p className="font-black text-slate-900 dark:text-white text-sm uppercase tracking-widest">
-                    Email
-                  </p>
-                  <p className="text-emerald-600 dark:text-emerald-400 font-bold">
-                    <a href="mailto:support@shoplinkvi.com">
-                      support@shoplinkvi.com
-                    </a>
-                  </p>
+                  <p className="font-black text-slate-900 dark:text-white text-xs uppercase tracking-widest mb-1">Email</p>
+                  <a href="mailto:contact@shoplinkvi.com" className="text-emerald-600 dark:text-emerald-400 font-bold hover:underline">
+                    contact@shoplinkvi.com
+                  </a>
                 </div>
               </div>
 
@@ -123,18 +125,15 @@ export default function ContactUs() {
                   <WhatsAppIcon className="w-5 h-5 text-white" />
                 </div>
                 <div>
-                  <p className="font-black text-slate-900 dark:text-white text-sm uppercase tracking-widest">
-                    WhatsApp
-                  </p>
-                  <p className="text-green-600 dark:text-green-400 font-bold">
-                    <a
-                      href="https://wa.me/2347000000000"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      +234 700 000 0000
-                    </a>
-                  </p>
+                  <p className="font-black text-slate-900 dark:text-white text-xs uppercase tracking-widest mb-1">WhatsApp</p>
+                  <a
+                    href="https://wa.me/2349043394263?text=Hi%20ShopLink%2C%20I%20want%20to%20get%20in%20touch..."
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-green-600 dark:text-green-400 font-bold hover:underline"
+                  >
+                    +234 904 339 4263
+                  </a>
                 </div>
               </div>
 
@@ -143,89 +142,106 @@ export default function ContactUs() {
                   <MapPin size={20} className="text-white" />
                 </div>
                 <div>
-                  <p className="font-black text-slate-900 dark:text-white text-sm uppercase tracking-widest">
-                    Location
-                  </p>
-                  <p className="text-slate-600 dark:text-slate-400 font-bold">
-                    Lagos, Nigeria
-                  </p>
+                  <p className="font-black text-slate-900 dark:text-white text-xs uppercase tracking-widest mb-1">Location</p>
+                  <p className="text-slate-600 dark:text-slate-300 font-bold">Lagos, Nigeria</p>
                 </div>
               </div>
             </div>
           </div>
 
+          {/* Right — Form */}
           <form
-            ref={formRef}
             onSubmit={handleSubmit}
-            className="space-y-5 bg-slate-50 dark:bg-slate-900/50 p-8 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-lg"
+            className="space-y-5 bg-slate-50 dark:bg-slate-900/50 p-8 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-[0_8px_40px_-8px_rgba(0,0,0,0.12)] dark:shadow-[0_8px_40px_-8px_rgba(0,0,0,0.5)]"
           >
-            <h3 className="text-2xl font-black text-slate-900 dark:text-white tracking-tighter mb-6">
-              Send Message
+            <h3 className="text-2xl font-black text-slate-900 dark:text-white tracking-tighter mb-2">
+              Send a Message
             </h3>
 
             <div>
-              <label className="block text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-2 ml-1">
-                Name
-              </label>
+              <label className="block text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-2 ml-1">Name</label>
               <input
                 type="text"
                 name="name"
+                required
                 value={formData.name}
-                onChange={handleChange}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 placeholder="Your Name"
-                className="w-full px-5 py-4 rounded-2xl bg-white dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white font-bold text-sm focus:border-emerald-500 outline-none transition-all"
+                className="w-full px-5 py-4 rounded-2xl bg-white dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-bold text-sm placeholder-slate-400 dark:placeholder-slate-500 focus:border-emerald-500 dark:focus:border-emerald-500 outline-none transition-all shadow-sm focus:shadow-[0_0_0_4px_rgba(16,185,129,0.1)]"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-2 ml-1">
-                Email
-              </label>
+              <label className="block text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-2 ml-1">Email</label>
               <input
                 type="email"
                 name="email"
+                required
                 value={formData.email}
-                onChange={handleChange}
+                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                 placeholder="you@example.com"
-                className="w-full px-5 py-4 rounded-2xl bg-white dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white font-bold text-sm focus:border-emerald-500 outline-none transition-all"
+                className="w-full px-5 py-4 rounded-2xl bg-white dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-bold text-sm placeholder-slate-400 dark:placeholder-slate-500 focus:border-emerald-500 dark:focus:border-emerald-500 outline-none transition-all shadow-sm focus:shadow-[0_0_0_4px_rgba(16,185,129,0.1)]"
               />
             </div>
 
-            <div>
-              <label className="block text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-2 ml-1">
-                Subject
-              </label>
-              <input
-                type="text"
-                name="subject"
-                value={formData.subject}
-                onChange={handleChange}
-                placeholder="What is this about?"
-                className="w-full px-5 py-4 rounded-2xl bg-white dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white font-bold text-sm focus:border-emerald-500 outline-none transition-all"
-              />
+            {/* Subject dropdown */}
+            <div className="relative" ref={dropdownRef}>
+              <label className="block text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-2 ml-1">Subject</label>
+              <button
+                type="button"
+                onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                className={`w-full flex items-center justify-between px-5 py-4 rounded-2xl border-2 font-bold text-sm transition-all shadow-sm outline-none ${
+                  isDropdownOpen
+                    ? "bg-white dark:bg-slate-800 border-emerald-500 shadow-[0_0_0_4px_rgba(16,185,129,0.1)]"
+                    : "bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600"
+                }`}
+              >
+                <span className={formData.subject ? "text-slate-900 dark:text-white" : "text-slate-400 dark:text-slate-500 font-medium"}>
+                  {formData.subject || "What is this about?"}
+                </span>
+                <ChevronDown size={18} className={`flex-shrink-0 transition-transform duration-200 ${isDropdownOpen ? "rotate-180 text-emerald-500" : "text-slate-400"}`} />
+              </button>
+
+              {isDropdownOpen && (
+                <div className="absolute top-full left-0 w-full mt-2 bg-white dark:bg-slate-800 rounded-2xl shadow-[0_20px_40px_-8px_rgba(0,0,0,0.15)] dark:shadow-[0_20px_40px_-8px_rgba(0,0,0,0.5)] border border-slate-200 dark:border-slate-700 overflow-hidden z-50">
+                  {SUBJECTS.map((s, i) => (
+                    <button
+                      key={i}
+                      type="button"
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        setFormData({ ...formData, subject: s });
+                        setIsDropdownOpen(false);
+                      }}
+                      className="w-full text-left px-5 py-3.5 text-sm font-bold text-slate-700 dark:text-slate-200 hover:bg-emerald-50 dark:hover:bg-slate-700 hover:text-emerald-600 dark:hover:text-white transition-colors border-b border-slate-100 dark:border-slate-700/50 last:border-0 outline-none"
+                    >
+                      {s}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
 
             <div>
-              <label className="block text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-2 ml-1">
-                Message
-              </label>
+              <label className="block text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-2 ml-1">Message</label>
               <textarea
                 name="message"
+                required
+                rows={5}
                 value={formData.message}
-                onChange={handleChange}
+                onChange={(e) => setFormData({ ...formData, message: e.target.value })}
                 placeholder="Tell us how we can help..."
-                rows="5"
-                className="w-full px-5 py-4 rounded-2xl bg-white dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white font-bold text-sm focus:border-emerald-500 outline-none transition-all resize-none"
-              ></textarea>
+                className="w-full px-5 py-4 rounded-2xl bg-white dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-bold text-sm placeholder-slate-400 dark:placeholder-slate-500 focus:border-emerald-500 dark:focus:border-emerald-500 outline-none transition-all resize-none shadow-sm focus:shadow-[0_0_0_4px_rgba(16,185,129,0.1)]"
+              />
             </div>
 
             <button
               type="submit"
               disabled={isSubmitting}
-              className="w-full py-4 px-6 bg-emerald-500 hover:bg-emerald-600 text-white font-black uppercase tracking-widest text-sm rounded-2xl transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2 shadow-lg"
+              className="w-full py-4 px-6 bg-emerald-500 hover:bg-emerald-600 text-white font-black uppercase tracking-widest text-sm rounded-2xl transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/25"
             >
               <Send size={16} />
-              {isSubmitting ? "Sending..." : "Send"}
+              {isSubmitting ? "Sending..." : "Send Message"}
             </button>
           </form>
         </div>
