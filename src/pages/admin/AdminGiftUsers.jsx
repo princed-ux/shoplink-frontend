@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import {
   Gift, Search, Loader2, Zap, Crown, Check, X,
-  ChevronDown, Store, Phone, Mail, ExternalLink
+  Store, ExternalLink
 } from "lucide-react";
 import { supabase } from "../../supabaseClient";
 import { toast } from "react-hot-toast";
@@ -33,8 +33,7 @@ export default function AdminGiftUsers() {
   const [search,      setSearch]      = useState('');
   const [giftTarget,  setGiftTarget]  = useState(null);
   const [giftPlan,    setGiftPlan]    = useState('pro');
-  const [giftUnit,    setGiftUnit]    = useState('months');
-  const [giftAmount,  setGiftAmount]  = useState(1);
+  const [giftReason,  setGiftReason]  = useState('');
   const [gifting,     setGifting]     = useState(false);
 
   useEffect(() => { fetchFreeUsers(); }, []);
@@ -46,6 +45,7 @@ export default function AdminGiftUsers() {
         .from('vendors')
         .select('id, shop_name, email, phone, slug, plan_type, country, created_at')
         .or('plan_type.eq.free,plan_type.is.null')
+        .or('gifted_by_admin.is.null,gifted_by_admin.eq.false')
         .order('created_at', { ascending: false });
       if (error) throw error;
       setVendors(data || []);
@@ -66,19 +66,13 @@ export default function AdminGiftUsers() {
     );
   }, [vendors, search]);
 
-  const maxAmount = giftUnit === 'years' ? 3 : 24;
-
   const handleGift = async () => {
     if (!giftTarget) return;
     setGifting(true);
     try {
       const now     = new Date();
       const expires = new Date(now);
-      if (giftUnit === 'years') {
-        expires.setFullYear(expires.getFullYear() + giftAmount);
-      } else {
-        expires.setMonth(expires.getMonth() + giftAmount);
-      }
+      expires.setMonth(expires.getMonth() + 1);
 
       const { error } = await supabase.from('vendors').update({
         plan_type:       giftPlan,
@@ -86,6 +80,7 @@ export default function AdminGiftUsers() {
         plan_started_at: now.toISOString(),
         plan_expires_at: expires.toISOString(),
         gifted_by_admin: true,
+        gift_reason:     giftReason.trim() || null,
       }).eq('id', giftTarget.id);
 
       if (error) throw error;
@@ -100,10 +95,6 @@ export default function AdminGiftUsers() {
     }
   };
 
-  const durationLabel = giftAmount === 1
-    ? `1 ${giftUnit === 'years' ? 'Year' : 'Month'}`
-    : `${giftAmount} ${giftUnit === 'years' ? 'Years' : 'Months'}`;
-
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 w-full pb-10">
 
@@ -117,7 +108,7 @@ export default function AdminGiftUsers() {
             <Gift className="text-purple-400" /> Gift Users
           </h2>
           <p className="text-slate-500 text-sm font-medium mt-1">
-            Give free users a Pro or Premium plan for a limited time.
+            Give a free user one month of Pro or Premium — one gift per user, ever.
           </p>
         </div>
         <div className="flex items-center gap-3 bg-slate-800/50 border border-slate-700 rounded-2xl px-5 py-3">
@@ -167,7 +158,7 @@ export default function AdminGiftUsers() {
               <Gift size={22} className="text-slate-600" />
             </div>
             <p className="text-slate-400 font-black text-sm">
-              {search ? 'No users match your search.' : 'All users are on paid plans.'}
+              {search ? 'No users match your search.' : 'No eligible users. All free users have already been gifted or are on paid plans.'}
             </p>
           </div>
         ) : (
@@ -231,7 +222,7 @@ export default function AdminGiftUsers() {
                           </a>
                         )}
                         <button
-                          onClick={() => { setGiftTarget(v); setGiftPlan('pro'); setGiftUnit('months'); setGiftAmount(1); }}
+                          onClick={() => { setGiftTarget(v); setGiftPlan('pro'); setGiftReason(''); }}
                           className="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white rounded-xl font-black text-[10px] uppercase tracking-widest transition-all active:scale-95"
                         >
                           <Gift size={12} /> Gift
@@ -306,59 +297,17 @@ export default function AdminGiftUsers() {
                 </div>
               </div>
 
-              {/* Duration unit */}
+              {/* Reason (optional) */}
               <div>
-                <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3">Duration Unit</p>
-                <div className="grid grid-cols-2 gap-3">
-                  {['months', 'years'].map(unit => (
-                    <button
-                      key={unit}
-                      onClick={() => { setGiftUnit(unit); setGiftAmount(1); }}
-                      className={`py-3 rounded-2xl border-2 font-black text-xs uppercase tracking-widest transition-all ${
-                        giftUnit === unit
-                          ? 'bg-emerald-500/10 border-emerald-500/40 text-emerald-400 ring-2 ring-emerald-500/20'
-                          : 'bg-slate-800/50 border-slate-700 text-slate-500 hover:border-slate-600 hover:text-slate-300'
-                      }`}
-                    >
-                      {unit}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Amount */}
-              <div>
-                <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3">
-                  How many {giftUnit}? <span className="text-white">{giftAmount}</span>
-                </p>
-                <div className="flex items-center gap-4">
-                  <button
-                    onClick={() => setGiftAmount(a => Math.max(1, a - 1))}
-                    className="w-10 h-10 rounded-xl bg-slate-800 border border-slate-700 text-white font-black text-lg hover:bg-slate-700 transition active:scale-90 flex items-center justify-center flex-shrink-0"
-                  >
-                    −
-                  </button>
-                  <div className="flex-1">
-                    <input
-                      type="range"
-                      min={1}
-                      max={maxAmount}
-                      value={giftAmount}
-                      onChange={e => setGiftAmount(Number(e.target.value))}
-                      className="w-full accent-purple-500"
-                    />
-                    <div className="flex justify-between text-[9px] font-black text-slate-600 mt-1">
-                      <span>1</span>
-                      <span>{maxAmount}</span>
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => setGiftAmount(a => Math.min(maxAmount, a + 1))}
-                    className="w-10 h-10 rounded-xl bg-slate-800 border border-slate-700 text-white font-black text-lg hover:bg-slate-700 transition active:scale-90 flex items-center justify-center flex-shrink-0"
-                  >
-                    +
-                  </button>
-                </div>
+                <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Reason <span className="normal-case font-medium text-slate-600">(optional)</span></p>
+                <textarea
+                  value={giftReason}
+                  onChange={e => setGiftReason(e.target.value.slice(0, 200))}
+                  placeholder="e.g. Compensation for downtime, loyalty reward…"
+                  rows={2}
+                  className="w-full px-4 py-3 bg-slate-800/50 border border-slate-700 rounded-2xl text-white text-xs font-medium placeholder-slate-600 outline-none focus:border-purple-500/50 transition-colors resize-none"
+                />
+                <p className="text-[10px] text-slate-600 font-medium text-right mt-1">{giftReason.length}/200</p>
               </div>
 
               {/* Summary */}
@@ -370,7 +319,7 @@ export default function AdminGiftUsers() {
                     {giftPlan.charAt(0).toUpperCase() + giftPlan.slice(1)}
                   </span>
                   {' '}for{' '}
-                  <span className="text-emerald-400">{durationLabel}</span>
+                  <span className="text-emerald-400">1 Month</span>
                   {' '}to{' '}
                   <span className="text-white">{giftTarget.shop_name || giftTarget.email}</span>
                 </p>

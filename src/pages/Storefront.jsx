@@ -2,12 +2,14 @@ import { useEffect, useState, useRef } from "react";
 import { useParams, Link } from "react-router-dom";
 import {
   ShoppingBag, Minus, Plus, Info, Search, X, Check,
-  Store, Copy, MessageCircle, Maximize2, AlignLeft, Zap, BadgeCheck
+  Store, Copy, MessageCircle, Maximize2, AlignLeft, Zap, BadgeCheck,
+  ChevronLeft, ChevronRight
 } from "lucide-react";
 import { toast, Toaster } from "react-hot-toast";
 import { supabase } from "../supabaseClient";
 import { getCurrency } from '../data/countries';
 import { getCurrencySymbol } from '../data/plans';
+import { resolveColor } from '../data/colors';
 import ThemeBackground from '../themes/ThemeBackground';
 
 // ── WhatsApp Icon ─────────────────────────────────────────────
@@ -160,7 +162,9 @@ export default function Storefront() {
   const [loading, setLoading]   = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [showInfo, setShowInfo]       = useState(false);
+  const [showLogoModal, setShowLogoModal] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState(null);
+  const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [showStickyNav, setShowStickyNav]     = useState(false);
   const [openVariantDropdown, setOpenVariantDropdown] = useState(null);
   const headerRef  = useRef(null);
@@ -255,6 +259,12 @@ export default function Storefront() {
     document.addEventListener('click', onClick, { passive: true });
     return () => document.removeEventListener('click', onClick);
   }, []);
+
+  // Reset image index when product modal opens
+  useEffect(() => { setActiveImageIndex(0); }, [selectedProduct]);
+
+  const getProductImages = (p) =>
+    p?.image_urls?.length ? p.image_urls : p?.image_url ? [p.image_url] : [];
 
   const updateCart = (id, delta) => {
     setCart(prev => {
@@ -441,7 +451,7 @@ export default function Storefront() {
             {/* Avatar */}
             <div className="absolute -top-16 left-1/2 -translate-x-1/2 z-30">
               <div className="w-32 h-32 bg-white rounded-full p-1.5 shadow-2xl cursor-pointer active:scale-95 transition-transform"
-                onClick={() => vendor.logo_url && setSelectedProduct({ image_url: vendor.logo_url, name: vendor.shop_name, isLogo: true })}>
+                onClick={() => vendor.logo_url && setShowLogoModal(true)}>
                 <div className="w-full h-full rounded-full overflow-hidden border-4 border-slate-50 bg-slate-50">
                   {vendor.logo_url
                     ? <img src={vendor.logo_url} className="w-full h-full object-cover" />
@@ -558,7 +568,10 @@ export default function Storefront() {
                                     onClick={(e) => { e.stopPropagation(); setOpenVariantDropdown(isOpen ? null : ddKey); }}
                                     className={`w-full text-[11px] font-bold px-3 py-2.5 rounded-xl border outline-none cursor-pointer transition-all flex items-center justify-between ${styles.isDark ? 'bg-white/[0.07] border-white/[0.12] text-white hover:bg-white/[0.12]' : 'bg-slate-100 border-slate-200 text-slate-700 hover:bg-slate-200'}`}
                                   >
-                                    <span className={selected ? '' : 'opacity-50'}>{selected || `Select ${group.name}`}</span>
+                                    <span className={`flex items-center gap-1.5 ${selected ? '' : 'opacity-50'}`}>
+                                      {selected && resolveColor(selected) && <span className="w-3 h-3 rounded-full border border-black/10 flex-shrink-0" style={{ backgroundColor: resolveColor(selected) }} />}
+                                      {selected || `Select ${group.name}`}
+                                    </span>
                                     <svg className={`transition-transform ${isOpen ? 'rotate-180' : ''}`} width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                                       <path d="m6 9 6 6 6-6" />
                                     </svg>
@@ -567,6 +580,7 @@ export default function Storefront() {
                                     <div className={`absolute left-0 right-0 top-full mt-1 z-20 rounded-xl border overflow-hidden shadow-xl ${styles.isDark ? 'bg-slate-800 border-white/[0.12]' : 'bg-white border-slate-200'}`}>
                                       {group.options.filter(o => o.trim()).map((opt, oi) => {
                                         const isSelected = selected === opt;
+                                        const c = resolveColor(opt);
                                         return (
                                           <button
                                             key={oi}
@@ -579,8 +593,9 @@ export default function Storefront() {
                                               }));
                                               setOpenVariantDropdown(null);
                                             }}
-                                            className={`w-full text-left text-[11px] font-bold px-3 py-2.5 transition-all ${isSelected ? (styles.isDark ? 'bg-emerald-500/20 text-emerald-400' : 'bg-emerald-50 text-emerald-600') : (styles.isDark ? 'text-white/70 hover:bg-white/[0.07]' : 'text-slate-600 hover:bg-slate-50')}`}
+                                            className={`w-full text-left text-[11px] font-bold px-3 py-2.5 transition-all flex items-center gap-1.5 ${isSelected ? (styles.isDark ? 'bg-emerald-500/20 text-emerald-400' : 'bg-emerald-50 text-emerald-600') : (styles.isDark ? 'text-white/70 hover:bg-white/[0.07]' : 'text-slate-600 hover:bg-slate-50')}`}
                                           >
+                                            {c && <span className="w-3 h-3 rounded-full border border-black/10 flex-shrink-0" style={{ backgroundColor: c }} />}
                                             {opt}
                                           </button>
                                         );
@@ -643,17 +658,19 @@ export default function Storefront() {
           </>
         )}
 
-        {/* ── POWERED BY FOOTER — shows on Free, hides on Pro/Premium ── */}
-        {!(isPro || isPremium) && (
-          <div className="mt-16 pb-8 pt-4 text-center flex flex-col items-center justify-center opacity-80 hover:opacity-100 transition-opacity">
-            <Link to="/" className={`inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-widest ${styles.cardSubtext} transition-all hover:scale-105 active:scale-95`}>
-              <Zap size={14} className="text-emerald-500" />
-              Powered by ShopLink.vi
-            </Link>
-          </div>
-        )}
-
       </main>
+
+      {/* ── POWERED BY BAR — full-width bottom strip, visible on Free stores only ── */}
+      {!(isPro || isPremium) && (
+        <div className={`fixed left-0 right-0 z-30 transition-all duration-300 ${totalItems > 0 ? 'bottom-24' : 'bottom-0'}`}>
+          <Link to="/"
+            className={`flex items-center justify-center gap-2 w-full py-3 text-[10px] font-black uppercase tracking-widest border-t backdrop-blur-md transition-colors
+              ${styles.isDark ? 'bg-slate-900/90 border-white/10 text-white/50 hover:text-white/70' : 'bg-white/95 border-slate-200/80 text-slate-400 hover:text-slate-600'}`}>
+            <Zap size={11} className="text-emerald-500 flex-shrink-0" />
+            Powered by ShopLink
+          </Link>
+        </div>
+      )}
 
       {/* ── CHECKOUT BAR ── */}
       {totalItems > 0 && (
@@ -752,81 +769,187 @@ export default function Storefront() {
         </div>
       )}
 
-      {/* ── PRODUCT DETAIL MODAL ── */}
-      {selectedProduct && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-md"
-          onClick={() => setSelectedProduct(null)}>
-          <div className={`${styles.isDark ? 'bg-slate-900 border border-white/10' : 'bg-white'} w-full max-w-md rounded-[2.5rem] overflow-hidden shadow-2xl animate-in zoom-in-95 duration-300`}
-            onClick={e => e.stopPropagation()}>
-            <button onClick={() => setSelectedProduct(null)}
-              className="absolute top-4 right-4 z-10 p-2 bg-black/30 text-white backdrop-blur-md rounded-full hover:bg-black/50 transition active:scale-95">
-              <X size={18} />
-            </button>
-            <div className="h-72 bg-slate-100 relative">
-              {selectedProduct.image_url
-                ? <img src={selectedProduct.image_url} className={`w-full h-full ${selectedProduct.isLogo ? 'object-contain p-10' : 'object-cover'}`} />
-                : <div className="w-full h-full flex items-center justify-center text-slate-300"><ShoppingBag size={48} /></div>
-              }
-            </div>
-                {!selectedProduct.isLogo && (
-              <div className="p-8">
-                <div className="flex justify-between items-start mb-4 gap-3">
-                  <h2 className={`text-2xl font-black leading-tight ${styles.cardText}`}>{selectedProduct.name}</h2>
-                  <div className="flex flex-col items-end gap-1">
-                    <span className="text-xl font-bold text-emerald-500 bg-emerald-50 px-3 py-1 rounded-lg flex-shrink-0">
-                      {currencySymbol}{Number(selectedProduct.price).toLocaleString()}
-                    </span>
-                    {isPro && selectedProduct.stock > 0 && (
-                      <span className="text-[10px] font-bold text-slate-400">{selectedProduct.stock} in stock</span>
-                    )}
-                    {isPro && selectedProduct.stock === 0 && (
-                      <span className="text-[10px] font-bold text-red-500">Out of stock</span>
-                    )}
-                  </div>
-                </div>
-                {selectedProduct.description && (
-                  <div className="max-h-36 overflow-y-auto mb-8 pr-2">
-                    <h4 className={`flex items-center gap-2 text-[10px] font-black uppercase tracking-widest mb-2 ${styles.cardSubtext}`}>
-                      <AlignLeft size={11} /> Description
-                    </h4>
-                    <p className={`text-sm font-medium leading-relaxed ${styles.cardSubtext}`}>{selectedProduct.description}</p>
+      {/* ── PRODUCT DETAIL MODAL (near-fullscreen split) ── */}
+      {selectedProduct && (() => {
+        const images = getProductImages(selectedProduct);
+        const hasMultiple = images.length > 1;
+        const currentImg = images[activeImageIndex] ?? null;
+        return (
+          <div className="fixed inset-0 z-[60] flex items-end lg:items-center justify-center lg:p-4 bg-slate-900/80 backdrop-blur-md"
+            onClick={() => setSelectedProduct(null)}>
+            <div
+              className={`${styles.isDark ? 'bg-slate-900 border border-white/10' : 'bg-white'} relative w-full lg:w-[95vw] lg:max-w-6xl rounded-t-[2.5rem] lg:rounded-[2.5rem] overflow-hidden shadow-2xl animate-in slide-in-from-bottom-4 lg:zoom-in-95 duration-300 flex flex-col lg:flex-row h-[93vh] lg:h-[88vh]`}
+              onClick={e => e.stopPropagation()}>
+
+              {/* Close button — top of whole modal */}
+              <button onClick={() => setSelectedProduct(null)}
+                className="absolute top-3 right-3 z-20 p-2 bg-black/40 text-white backdrop-blur-md rounded-full hover:bg-black/60 transition active:scale-95">
+                <X size={18} />
+              </button>
+
+              {/* ── LEFT: IMAGE PANEL ── */}
+              <div className="relative flex-shrink-0 lg:flex-shrink lg:w-[55%] h-[44vh] lg:h-auto bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
+                {currentImg ? (
+                  <img
+                    key={currentImg}
+                    src={currentImg}
+                    className="w-full h-full object-contain"
+                    alt={selectedProduct.name}
+                  />
+                ) : (
+                  <div className="text-slate-300"><ShoppingBag size={48} /></div>
+                )}
+
+                {/* Counter */}
+                {hasMultiple && (
+                  <div className="absolute top-3 left-3 px-2 py-1 bg-black/40 backdrop-blur-md rounded-full text-white text-[10px] font-black">
+                    {activeImageIndex + 1} / {images.length}
                   </div>
                 )}
-                {isPro && selectedProduct.stock === 0 ? (
-                  <div className="w-full py-5 rounded-2xl font-black text-xs uppercase tracking-widest text-center bg-red-50 text-red-400 border-2 border-red-200">
-                    Out of stock
-                  </div>
-                ) : cart[selectedProduct.id] ? (
-                  <div className="flex items-center justify-between bg-emerald-500 text-white rounded-2xl p-2 shadow-lg">
-                    <button onClick={() => updateCart(selectedProduct.id, -1)}
-                      className="w-12 h-12 flex items-center justify-center rounded-xl hover:bg-white/20 transition active:scale-90">
-                      <Minus size={18} strokeWidth={3} />
+
+                {/* Arrows */}
+                {hasMultiple && (
+                  <>
+                    <button
+                      onClick={e => { e.stopPropagation(); setActiveImageIndex(i => (i - 1 + images.length) % images.length); }}
+                      className="absolute left-3 top-1/2 -translate-y-1/2 p-2 bg-black/40 text-white backdrop-blur-md rounded-full hover:bg-black/60 transition active:scale-90">
+                      <ChevronLeft size={20} />
                     </button>
-                    <span className="text-lg font-black">{cart[selectedProduct.id]} in cart</span>
-                    {isPro && selectedProduct.stock > 0 && cart[selectedProduct.id] >= selectedProduct.stock ? (
-                      <div className="w-12 h-12 flex items-center justify-center rounded-xl opacity-40">
-                        <Plus size={18} strokeWidth={3} />
-                      </div>
-                    ) : (
-                      <button onClick={() => updateCart(selectedProduct.id, 1)}
-                        className="w-12 h-12 flex items-center justify-center rounded-xl hover:bg-white/20 transition active:scale-90">
-                        <Plus size={18} strokeWidth={3} />
+                    <button
+                      onClick={e => { e.stopPropagation(); setActiveImageIndex(i => (i + 1) % images.length); }}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 p-2 bg-black/40 text-white backdrop-blur-md rounded-full hover:bg-black/60 transition active:scale-90">
+                      <ChevronRight size={20} />
+                    </button>
+                  </>
+                )}
+
+                {/* Thumbnail rail */}
+                {hasMultiple && (
+                  <div className="absolute bottom-3 left-0 right-0 flex justify-center gap-2 px-4 overflow-x-auto no-scrollbar">
+                    {images.map((img, i) => (
+                      <button key={i}
+                        onClick={e => { e.stopPropagation(); setActiveImageIndex(i); }}
+                        className={`w-12 h-12 rounded-xl overflow-hidden flex-shrink-0 border-2 transition-all ${i === activeImageIndex ? 'border-emerald-500 ring-2 ring-white/60' : 'border-white/40 opacity-70 hover:opacity-100'}`}>
+                        <img src={img} className="w-full h-full object-cover" />
                       </button>
-                    )}
+                    ))}
                   </div>
-                ) : (
-                  <button onClick={() => updateCart(selectedProduct.id, 1)}
-                    className="w-full bg-slate-900 text-white py-4 rounded-2xl font-black uppercase tracking-widest text-xs shadow-xl hover:bg-emerald-500 transition-colors flex items-center justify-center gap-2 active:scale-95">
-                    <Plus size={16} strokeWidth={3} /> Add to Order
-                  </button>
                 )}
               </div>
-            )}
+
+              {/* ── RIGHT: DETAILS PANEL ── */}
+              <div className="flex-1 lg:w-[45%] flex flex-col overflow-y-auto p-6 sm:p-8">
+                  <div className="flex justify-between items-start mb-4 gap-3">
+                    <h2 className={`text-2xl lg:text-3xl font-black leading-tight ${styles.cardText}`}>{selectedProduct.name}</h2>
+                    <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                      <span className="text-xl font-bold text-emerald-500 bg-emerald-50 dark:bg-emerald-500/10 px-3 py-1 rounded-lg">
+                        {currencySymbol}{Number(selectedProduct.price).toLocaleString()}
+                      </span>
+                      {isPro && selectedProduct.stock > 0 && (
+                        <span className="text-[10px] font-bold text-slate-400">{selectedProduct.stock} in stock</span>
+                      )}
+                      {isPro && selectedProduct.stock === 0 && (
+                        <span className="text-[10px] font-bold text-red-500">Out of stock</span>
+                      )}
+                    </div>
+                  </div>
+
+                  {selectedProduct.description && (
+                    <div className="mb-6 pr-1">
+                      <h4 className={`flex items-center gap-2 text-[10px] font-black uppercase tracking-widest mb-2 ${styles.cardSubtext}`}>
+                        <AlignLeft size={11} /> Description
+                      </h4>
+                      <p className={`text-sm font-medium leading-relaxed ${styles.cardSubtext}`}>{selectedProduct.description}</p>
+                    </div>
+                  )}
+
+                  {/* Variant selector (with colour swatches) */}
+                  {isPro && Array.isArray(selectedProduct.variants) && selectedProduct.variants.length > 0 && (
+                    <div className="mb-6 space-y-3">
+                      {selectedProduct.variants.map((group, gi) => {
+                        const selected = variantSelections[selectedProduct.id]?.[group.name] || '';
+                        return (
+                          <div key={gi}>
+                            <p className={`text-[10px] font-black uppercase tracking-widest mb-2 ${styles.cardSubtext}`}>{group.name}</p>
+                            <div className="flex flex-wrap gap-2">
+                              {group.options.filter(o => o.trim()).map((opt, oi) => {
+                                const c = resolveColor(opt);
+                                return (
+                                  <button key={oi}
+                                    onClick={() => setVariantSelections(prev => ({
+                                      ...prev,
+                                      [selectedProduct.id]: { ...(prev[selectedProduct.id] || {}), [group.name]: opt }
+                                    }))}
+                                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border-2 transition-all ${selected === opt ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' : `border-slate-200 dark:border-slate-700 ${styles.cardSubtext}`}`}>
+                                    {c && <span className="w-3.5 h-3.5 rounded-full border border-black/10 flex-shrink-0" style={{ backgroundColor: c }} />}
+                                    {opt}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {/* Add to order controls */}
+                  <div className="mt-auto pt-2">
+                  {isPro && selectedProduct.stock === 0 ? (
+                    <div className="w-full py-5 rounded-2xl font-black text-xs uppercase tracking-widest text-center bg-red-50 dark:bg-red-500/10 text-red-400 border-2 border-red-200 dark:border-red-500/20">
+                      Out of stock
+                    </div>
+                  ) : cart[selectedProduct.id] ? (
+                    <div className="flex items-center justify-between bg-emerald-500 text-white rounded-2xl p-2 shadow-lg">
+                      <button onClick={() => updateCart(selectedProduct.id, -1)}
+                        className="w-12 h-12 flex items-center justify-center rounded-xl hover:bg-white/20 transition active:scale-90">
+                        <Minus size={18} strokeWidth={3} />
+                      </button>
+                      <span className="text-lg font-black">{cart[selectedProduct.id]} in cart</span>
+                      {isPro && selectedProduct.stock > 0 && cart[selectedProduct.id] >= selectedProduct.stock ? (
+                        <div className="w-12 h-12 flex items-center justify-center rounded-xl opacity-40">
+                          <Plus size={18} strokeWidth={3} />
+                        </div>
+                      ) : (
+                        <button onClick={() => updateCart(selectedProduct.id, 1)}
+                          className="w-12 h-12 flex items-center justify-center rounded-xl hover:bg-white/20 transition active:scale-90">
+                          <Plus size={18} strokeWidth={3} />
+                        </button>
+                      )}
+                    </div>
+                  ) : (
+                    <button onClick={() => updateCart(selectedProduct.id, 1)}
+                      className="w-full bg-slate-900 dark:bg-white dark:text-slate-900 text-white py-4 rounded-2xl font-black uppercase tracking-widest text-xs shadow-xl hover:bg-emerald-500 dark:hover:bg-emerald-500 dark:hover:text-white transition-colors flex items-center justify-center gap-2 active:scale-95">
+                      <Plus size={16} strokeWidth={3} /> Add to Order
+                    </button>
+                  )}
+                  </div>
+                </div>
+            </div>
           </div>
+        );
+      })()}
+
+      {/* ── LOGO LIGHTBOX — simple centered profile picture view ── */}
+      {showLogoModal && vendor.logo_url && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/85 backdrop-blur-md animate-in fade-in duration-200"
+          onClick={() => setShowLogoModal(false)}>
+          <button onClick={() => setShowLogoModal(false)}
+            className="absolute top-4 right-4 p-2.5 bg-white/10 text-white backdrop-blur-md rounded-full hover:bg-white/20 transition active:scale-95">
+            <X size={20} />
+          </button>
+          <img
+            src={vendor.logo_url}
+            alt={vendor.shop_name}
+            className="max-w-[72vw] max-h-[72vh] w-auto h-auto object-contain rounded-full shadow-2xl animate-in zoom-in-95 duration-200"
+            onClick={e => e.stopPropagation()}
+          />
         </div>
       )}
 
       <style>{`
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
         /* ── Verified badge animations ── */
         .badge-gold {
           animation: badge-gold-pulse 3.5s ease-in-out infinite;

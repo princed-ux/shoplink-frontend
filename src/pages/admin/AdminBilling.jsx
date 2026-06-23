@@ -12,12 +12,13 @@ export default function AdminBilling() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const { data: vendors } = await supabase.from("vendors").select("plan_type, country");
+        const { data: vendors } = await supabase.from("vendors").select("plan_type, country, gifted_by_admin");
         if (!vendors) return;
         const total   = vendors.length;
         const free    = vendors.filter(v => !v.plan_type || v.plan_type === 'free').length;
-        const pro     = vendors.filter(v => v.plan_type === 'pro').length;
-        const premium = vendors.filter(v => v.plan_type === 'premium').length;
+        const paid    = vendors.filter(v => !v.gifted_by_admin);
+        const pro     = paid.filter(v => v.plan_type === 'pro').length;
+        const premium = paid.filter(v => v.plan_type === 'premium').length;
         const ng      = vendors.filter(v => v.country === 'NG').length;
         const usd     = vendors.filter(v => v.country !== 'NG').length;
         setBilling({ total, free, pro, premium, ng, usd });
@@ -121,6 +122,7 @@ export default function AdminBilling() {
           <div className="flex items-center gap-1.5 text-[10px] font-black text-emerald-400">
             <ArrowUp size={11} /> {upgradeRate}% upgrade rate
           </div>
+          <p className="text-[9px] text-slate-600 font-medium">Excludes gifted plans</p>
         </div>
 
         {/* NGN MRR */}

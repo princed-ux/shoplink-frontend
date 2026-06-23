@@ -547,7 +547,10 @@ export default function LandingPage() {
           </div>
           <div className="space-y-3">
             {[
-              { q: 'Is ShopLink really free?',                a: 'Yes — completely free. No credit card, no trial, no hidden fees. Create your store and start selling at zero cost.' },
+              { q: 'Is ShopLink really free?',                a: 'Yes — completely free, and it always will be. No credit card, no trial, no hidden fees. Create your store and start selling at zero cost.' },
+              { q: 'Do I have to pay for Pro or Premium?',    a: 'No. Pro and Premium are completely optional upgrades — never required to sell. The free plan is fully functional. Paid tiers just add extra polish like more product photos, animated GIFs, premium themes, a verified badge and deeper analytics.' },
+              { q: 'Can I add multiple photos to a product?', a: 'Yes. Every store can add a product photo for free. Pro lets you add up to 5 photos per product, and Premium up to 10 photos plus animated GIFs — perfect for showing the front, back and sides of an item like a real online store.' },
+              { q: "What's the difference between Free, Pro and Premium?", a: 'Free gives you a complete store with unlimited products and WhatsApp checkout. Pro adds up to 5 photos per product, stock tracking, product variants, more themes and a blue verified badge. Premium adds up to 10 photos plus GIFs, all premium themes, a gold verified badge, CSV bulk import and the deepest analytics. Free is enough to sell — the rest is optional.' },
               { q: 'Do I need a laptop to use ShopLink?',     a: 'Not at all. ShopLink is built for mobile. Manage your entire store from your phone.' },
               { q: 'How do I receive my money?',              a: "ShopLink is not a payment processor. Customers send formatted orders to your WhatsApp and you arrange payment (transfer, cash) directly — just faster and more organised." },
               { q: 'How many products can I upload?',         a: 'Unlimited. There is no product cap. Upload as many items as your store needs.' },
@@ -560,7 +563,7 @@ export default function LandingPage() {
                   <span className="font-black text-sm text-slate-900 dark:text-white">{faq.q}</span>
                   <ChevronDown size={17} className={`text-slate-400 transition-transform duration-300 flex-shrink-0 ml-4 ${openFaq === i ? 'rotate-180 text-emerald-500' : ''}`} />
                 </button>
-                <div className={`overflow-hidden transition-all duration-300 ${openFaq === i ? 'max-h-40 opacity-100' : 'max-h-0 opacity-0'}`}>
+                <div className={`overflow-hidden transition-all duration-300 ${openFaq === i ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'}`}>
                   <p className="px-6 pb-6 text-slate-500 dark:text-slate-400 text-sm leading-relaxed font-medium">{faq.a}</p>
                 </div>
               </div>

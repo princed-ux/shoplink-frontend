@@ -62,6 +62,11 @@ export default function BillingSettings({ user, setUser }) {
   const startedAt       = user?.vendor?.plan_started_at;
   const billingCycle    = user?.vendor?.billing_cycle || 'monthly';
   const meta            = PLAN_META[planType] || PLAN_META.free;
+
+  const daysLeft = expiresAt ? Math.ceil((new Date(expiresAt) - Date.now()) / 86400000) : null;
+  const showExpiringSoon  = planType !== 'free' && daysLeft !== null && daysLeft > 0 && daysLeft <= 7;
+  const showExpired       = planType !== 'free' && daysLeft !== null && daysLeft <= 0;
+  const showTransferNote  = planType !== 'free' && daysLeft !== null && daysLeft > 0 && daysLeft <= 14;
   const Icon            = meta.icon;
   const currentPlanData = SUBSCRIPTION_PLANS.find(p => p.id === planType);
 
@@ -100,6 +105,46 @@ export default function BillingSettings({ user, setUser }) {
         <h1 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight">Billing</h1>
         <p className="text-slate-400 font-medium text-sm mt-2">Your current plan and subscription details.</p>
       </div>
+
+      {/* Expiry warning banners */}
+      {showExpired && (
+        <div className="flex items-start gap-4 p-5 rounded-[2rem] border-2 border-red-200 dark:border-red-500/30 bg-red-50 dark:bg-red-500/10">
+          <div className="w-10 h-10 bg-red-100 dark:bg-red-500/20 rounded-xl flex items-center justify-center flex-shrink-0">
+            <AlertCircle size={18} className="text-red-500" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="font-black text-red-700 dark:text-red-400 text-sm">Your {meta.label} plan has ended</p>
+            <p className="text-xs text-red-600/80 dark:text-red-300/70 font-medium mt-0.5">Your store is now on the Free plan. Upgrade to restore your features.</p>
+          </div>
+          <button onClick={() => openUpgradeModal?.()} className="flex-shrink-0 text-[10px] font-black bg-red-500 hover:bg-red-600 text-white px-4 py-2.5 rounded-xl uppercase tracking-widest transition-all active:scale-95">
+            Renew
+          </button>
+        </div>
+      )}
+
+      {showExpiringSoon && !showExpired && (
+        <div className="flex items-start gap-4 p-5 rounded-[2rem] border-2 border-amber-200 dark:border-amber-500/30 bg-amber-50 dark:bg-amber-500/10">
+          <div className="w-10 h-10 bg-amber-100 dark:bg-amber-500/20 rounded-xl flex items-center justify-center flex-shrink-0">
+            <AlertCircle size={18} className="text-amber-500" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="font-black text-amber-700 dark:text-amber-400 text-sm">
+              Your {meta.label} plan expires in <strong>{daysLeft} day{daysLeft !== 1 ? 's' : ''}</strong>
+            </p>
+            <p className="text-xs text-amber-600/80 dark:text-amber-300/70 font-medium mt-0.5">
+              Renew before {new Date(expiresAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'long' })} to keep your features.
+            </p>
+            {showTransferNote && (
+              <p className="text-[11px] text-amber-600/70 dark:text-amber-300/60 font-medium mt-1">
+                If you paid by bank transfer, you will need to pay again manually to renew.
+              </p>
+            )}
+          </div>
+          <button onClick={() => openUpgradeModal?.()} className="flex-shrink-0 text-[10px] font-black bg-amber-500 hover:bg-amber-600 text-white px-4 py-2.5 rounded-xl uppercase tracking-widest transition-all active:scale-95">
+            Renew
+          </button>
+        </div>
+      )}
 
       {/* Current plan */}
       <div className={cardCls}>

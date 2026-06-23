@@ -123,6 +123,7 @@ export default function AccountSettings({ user, setUser }) {
     if (isGoogleUser && deleteConfirmText !== 'DELETE') return toast.error('Type DELETE to confirm');
     
     setDeleteLoading(true);
+    sessionStorage.setItem('shoplink_self_deleting', '1');
     try {
       const { data, error } = await supabase.functions.invoke('delete-account', {
         body: {

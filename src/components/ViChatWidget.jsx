@@ -262,7 +262,7 @@ export default function ViChatWidget() {
       {/* ── FLOATING TOGGLE BUTTON (64px width/height) ── */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className={`fixed bottom-6 right-6 z-[99999] w-[64px] h-[64px] rounded-full flex items-center justify-center shadow-2xl transition-all duration-300 hover:scale-105 active:scale-95 
+        className={`fixed bottom-20 right-4 sm:bottom-6 sm:right-6 z-[99999] w-[56px] h-[56px] sm:w-[64px] sm:h-[64px] rounded-full flex items-center justify-center shadow-2xl transition-all duration-300 hover:scale-105 active:scale-95
         ${isOpen 
           ? 'hidden sm:flex bg-emerald-500 text-white' 
           : 'bg-emerald-500 hover:bg-emerald-600 text-white shadow-emerald-500/30'}`}

@@ -184,11 +184,14 @@ export default function App() {
 
         if (vendorProfile) {
           const now = new Date().toISOString();
-          const provider = session.user.app_metadata?.provider || 'email';
+          const identities = session.user.identities || [];
+          const provider = identities.some(i => i.provider === 'google')
+            ? 'google'
+            : (session.user.app_metadata?.provider || 'email');
           const updates = { last_seen_at: now };
-          if (!vendorProfile.auth_provider) updates.auth_provider = provider;
+          if (vendorProfile.auth_provider !== provider) updates.auth_provider = provider;
           supabase.from('vendors').update(updates).eq('id', session.user.id);
-          if (!vendorProfile.auth_provider) vendorProfile.auth_provider = provider;
+          vendorProfile.auth_provider = provider;
         }
 
         if (isMounted) {
@@ -231,8 +234,12 @@ export default function App() {
               },
               () => {
                 if (isMounted) {
-                  toast.error('Your account has been removed by an administrator.');
-                  supabase.auth.signOut();
+                  const selfDeleting = sessionStorage.getItem('shoplink_self_deleting');
+                  sessionStorage.removeItem('shoplink_self_deleting');
+                  if (!selfDeleting) {
+                    toast.error('Your account has been removed by an administrator.');
+                    supabase.auth.signOut();
+                  }
                 }
               }
             )

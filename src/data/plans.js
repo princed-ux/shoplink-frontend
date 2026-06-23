@@ -8,6 +8,9 @@ export const PREMIUM_EXCLUSIVE_THEMES = ['royal', 'diamond', 'galaxy', 'cybercit
 
 export const PLAN_LEVELS = { free: 0, pro: 1, premium: 2 };
 
+export const MAX_PRODUCT_IMAGES = { free: 1, pro: 5, premium: 10 };
+export const GIF_ENABLED = { free: false, pro: false, premium: true };
+
 export function isSubscriptionActive(vendor) {
   if (!vendor?.plan_expires_at) return true; // free plan has no expiry
   if (vendor?.plan_status === 'past_due') return false;
@@ -241,7 +244,6 @@ export const SUBSCRIPTION_PLANS = [
       'Premium analytics — 90-day history, avg order value, monthly revenue trends',
       'Custom checkout message shown to customers when ordering',
       '📥 Bulk product import via CSV',
-      '🚀 Early access to new features + beta tester priority',
     ],
     color: 'bg-slate-900 border-slate-900 text-white',
     btnColor: 'bg-amber-500 text-white hover:bg-amber-400',

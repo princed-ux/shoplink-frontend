@@ -1,10 +1,10 @@
 import { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
-import { 
-  Zap, Store, Smartphone, BarChart3, 
-  Globe, ArrowRight, Sparkles, Layers, 
-  Palette, BellRing, Share2, MessageCircle
+import {
+  Zap, Store, Smartphone, BarChart3,
+  Globe, ArrowRight, Sparkles, Layers,
+  Palette, BellRing, Share2, MessageCircle, Images
 } from 'lucide-react';
 import Footer from '../components/Footer';
 
@@ -233,6 +233,51 @@ export default function Features() {
                 </div>
               </div>
             </div>
+          </div>
+        </div>
+
+        {/* Feature 3: Rich Product Galleries */}
+        <div className="grid lg:grid-cols-2 gap-16 items-center">
+          <div className="order-2 lg:order-1 relative group">
+            <div className="absolute inset-0 bg-gradient-to-tr from-purple-500/20 to-pink-500/20 blur-3xl rounded-[3rem] group-hover:opacity-70 transition-opacity duration-700 opacity-30" />
+            <div className="bg-white dark:bg-slate-900 rounded-[3rem] p-8 border border-slate-200 dark:border-slate-800 shadow-2xl relative z-10 transform group-hover:-rotate-2 transition-transform duration-500">
+              {/* Mockup: big image + thumbnail rail */}
+              <div className="aspect-[4/3] bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-800 dark:to-slate-700 rounded-3xl mb-4 flex items-center justify-center text-5xl">👟</div>
+              <div className="grid grid-cols-4 gap-3">
+                {['👟','👠','🥿','🩴'].map((e, i) => (
+                  <div key={i} className={`aspect-square rounded-2xl flex items-center justify-center text-2xl border-2 ${i === 0 ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-500/10' : 'border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-800'}`}>{e}</div>
+                ))}
+              </div>
+              <div className="flex gap-2 mt-5">
+                {[['Black','#111827'],['Sky Blue','#87ceeb'],['Wine','#722f37']].map(([label, c], i) => (
+                  <span key={i} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border-2 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300">
+                    <span className="w-3 h-3 rounded-full border border-black/10" style={{ backgroundColor: c }} />{label}
+                  </span>
+                ))}
+              </div>
+            </div>
+          </div>
+          <div className="order-1 lg:order-2 animate-in slide-in-from-right-12 fade-in duration-1000">
+            <div className="w-12 h-12 bg-purple-100 dark:bg-purple-500/20 text-purple-600 dark:text-purple-400 rounded-xl flex items-center justify-center mb-6">
+              <Images size={24} />
+            </div>
+            <h2 className="text-3xl lg:text-4xl font-black text-slate-900 dark:text-white mb-6 leading-tight">
+              Show every angle with rich galleries
+            </h2>
+            <p className="text-slate-500 dark:text-slate-400 text-lg font-medium mb-8 leading-relaxed">
+              One photo is good — several is better. Add multiple photos per product so customers can see the front, back and sides, tap through a big full-screen view, and pick the exact colour with visual swatches. Premium even supports animated GIFs.
+            </p>
+            <ul className="space-y-4">
+              {['Up to 5 photos on Pro, 10 + GIFs on Premium', 'Big Temu-style product view', 'Automatic colour swatches for variants'].map((item, i) => (
+                <li key={i} className="flex items-center gap-3 font-bold text-slate-700 dark:text-slate-300">
+                  <div className="w-6 h-6 rounded-full bg-purple-50 dark:bg-purple-500/10 flex items-center justify-center text-purple-500">
+                    <Zap size={12} fill="currentColor" />
+                  </div>
+                  {item}
+                </li>
+              ))}
+            </ul>
+            <p className="mt-6 text-sm font-bold text-emerald-600 dark:text-emerald-400">Every store sells for free — galleries are an optional upgrade.</p>
           </div>
         </div>
 

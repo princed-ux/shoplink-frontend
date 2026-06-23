@@ -207,6 +207,11 @@ export default function DashboardLayout({ user, setUser }) {
     if (setUser) setUser(prev => ({ ...prev, vendor: { ...prev.vendor, gifted_by_admin: false } }));
   };
 
+  const expiryDaysLeft = user?.vendor?.plan_expires_at && user?.vendor?.plan_type !== 'free'
+    ? Math.ceil((new Date(user.vendor.plan_expires_at) - Date.now()) / 86400000)
+    : null;
+  const showExpiryStrip = expiryDaysLeft !== null && expiryDaysLeft > 0 && expiryDaysLeft <= 3;
+
   return (
     <div className="h-screen bg-slate-50 dark:bg-slate-950 font-sans text-slate-900 dark:text-white flex overflow-hidden transition-colors duration-300 relative">
       <Toaster position="top-right" toastOptions={{
@@ -407,6 +412,27 @@ export default function DashboardLayout({ user, setUser }) {
                 title="Dismiss"
               >
                 <X size={16} />
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ── PLAN EXPIRY STRIP (≤3 days left) ── */}
+        {showExpiryStrip && (
+          <div className="shrink-0 border-b border-amber-200 dark:border-amber-500/30 bg-amber-50 dark:bg-amber-950/80 z-40">
+            <div className="px-5 py-2.5 flex items-center justify-between gap-4 max-w-[1600px] mx-auto">
+              <div className="flex items-center gap-2.5">
+                <AlertCircle size={15} className="text-amber-500 flex-shrink-0" />
+                <p className="text-xs font-black text-amber-700 dark:text-amber-400">
+                  Your {user?.vendor?.plan_type?.charAt(0).toUpperCase() + user?.vendor?.plan_type?.slice(1)} plan expires in{' '}
+                  <strong>{expiryDaysLeft} day{expiryDaysLeft !== 1 ? 's' : ''}</strong> — renew to keep your features.
+                </p>
+              </div>
+              <button
+                onClick={() => setShowUpgradeModal(true)}
+                className="flex-shrink-0 text-[10px] font-black bg-amber-500 hover:bg-amber-600 text-white px-3.5 py-1.5 rounded-xl uppercase tracking-widest transition-all active:scale-95"
+              >
+                Renew
               </button>
             </div>
           </div>

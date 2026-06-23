@@ -1,14 +1,17 @@
 import { useState, useRef, useEffect } from 'react';
-import { Plus, Loader2, ShoppingBag, ImageIcon, Pencil, Trash2, UploadCloud, Lock, FileUp, X, CheckCircle2, AlertTriangle, Zap, Package2 } from 'lucide-react';
+import { Plus, Loader2, ShoppingBag, ImageIcon, Pencil, Trash2, UploadCloud, Lock, FileUp, X, CheckCircle2, AlertTriangle, Zap, Package2, ChevronLeft, ChevronRight } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import Papa from 'papaparse';
 import { supabase } from '../supabaseClient';
 import { getCurrency } from '../data/countries';
-import { getCurrencySymbol, hasPlan } from '../data/plans';
+import { getCurrencySymbol, hasPlan, MAX_PRODUCT_IMAGES, GIF_ENABLED } from '../data/plans';
+import { resolveColor } from '../data/colors';
 
 export default function ProductManager({ user, setUser }) {
   const isPaidUser    = hasPlan(user?.vendor, 'pro');
   const isPremiumUser = hasPlan(user?.vendor, 'premium');
+  const effectivePlan = isPremiumUser ? 'premium' : isPaidUser ? 'pro' : 'free';
+  const maxImages = MAX_PRODUCT_IMAGES[effectivePlan];
   const pmCurrency = getCurrency(user?.vendor?.country || 'NG');
   const pmSymbol = getCurrencySymbol(pmCurrency);
 
@@ -17,8 +20,8 @@ export default function ProductManager({ user, setUser }) {
   const [stock, setStock]                   = useState('');
   const [description, setDescription]       = useState('');
   const [variants, setVariants]             = useState([]);
-  const [imageFile, setImageFile]           = useState(null);
-  const [imagePreview, setImagePreview]     = useState(null);
+  // Each entry: { url: string (blob or Supabase URL), file: File|null }
+  const [pendingImages, setPendingImages]   = useState([]);
   const [loading, setLoading]               = useState(false);
   const [editingId, setEditingId]           = useState(null);
   const [products, setProducts]             = useState([]);
@@ -26,6 +29,12 @@ export default function ProductManager({ user, setUser }) {
   const fileInputRef = useRef(null);
 
   const uploadedCount  = user?.vendor?.uploaded_count ?? 0;
+
+  // Inventory preview modal state
+  const [previewProduct, setPreviewProduct] = useState(null);
+  const [previewIndex, setPreviewIndex] = useState(0);
+  const [deleteConfirmId, setDeleteConfirmId] = useState(null);
+  const [deleteConfirming, setDeleteConfirming] = useState(false);
 
   // Quick restock state
   const [restockId, setRestockId] = useState(null);
@@ -70,17 +79,50 @@ export default function ProductManager({ user, setUser }) {
   };
 
   const handleFileSelect = (e) => {
-    const file = e?.target?.files?.[0];
-    if (file) {
+    const files = Array.from(e?.target?.files || []);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+    if (files.length === 0) return;
+
+    // Single-image plans (free): re-picking replaces the existing photo
+    if (maxImages === 1) {
+      const file = files[0];
       if (file.size > 2 * 1024 * 1024) return toast.error('File too large (Max 2MB)');
-      setImageFile(file);
-      setImagePreview(URL.createObjectURL(file));
+      setPendingImages([{ url: URL.createObjectURL(file), file }]);
+      return;
+    }
+
+    const remaining = maxImages - pendingImages.length;
+    if (remaining <= 0) {
+      return toast.error(`Max ${maxImages} image${maxImages > 1 ? 's' : ''} on your plan`);
+    }
+
+    const accepted = [];
+    let rejectedGif = false;
+    let rejectedSize = false;
+
+    for (const file of files) {
+      if (accepted.length >= remaining) break;
+      const isGif = file.type === 'image/gif';
+      if (isGif && !GIF_ENABLED[effectivePlan]) { rejectedGif = true; continue; }
+      const maxSize = isGif ? 5 * 1024 * 1024 : 2 * 1024 * 1024;
+      if (file.size > maxSize) { rejectedSize = true; continue; }
+      accepted.push({ url: URL.createObjectURL(file), file });
+    }
+
+    if (accepted.length > 0) {
+      setPendingImages(prev => [...prev, ...accepted]);
+    }
+    if (files.length > remaining) {
+      toast.error(`Only ${remaining} more image${remaining > 1 ? 's' : ''} allowed on your plan`);
+    } else if (rejectedGif) {
+      toast.error('GIF upload requires a Premium plan');
+    } else if (rejectedSize) {
+      toast.error('Some files were too large (Max 2MB photo / 5MB GIF)');
     }
   };
 
   const clearForm = () => {
-    setImageFile(null);
-    setImagePreview(null);
+    setPendingImages([]);
     setName('');
     setPrice('');
     setStock('');
@@ -92,7 +134,8 @@ export default function ProductManager({ user, setUser }) {
 
   const uploadImage = async (file) => {
     const ext = file.name.split('.').pop();
-    const fileName = `${user.vendor.id}/${Date.now()}.${ext}`;
+    const uid = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const fileName = `${user.vendor.id}/${uid}.${ext}`;
     const { error } = await supabase.storage
       .from('product-images')
       .upload(fileName, file, { upsert: true });
@@ -105,20 +148,21 @@ export default function ProductManager({ user, setUser }) {
 
   const handleSaveProduct = async () => {
     if (!name || !price) return toast.error('Enter product details');
-    if (!editingId && !imageFile && !imagePreview) return toast.error('Product image is mandatory!');
+    if (!editingId && pendingImages.length === 0) return toast.error('Product image is mandatory!');
 
     setLoading(true);
     try {
-      let imageUrl = imagePreview;
-      if (imageFile) imageUrl = await uploadImage(imageFile);
-
+      const finalUrls = await Promise.all(
+        pendingImages.map(item => item.file ? uploadImage(item.file) : item.url)
+      );
+      const imageUrl = finalUrls[0] ?? null;
       const stockVal = isPaidUser && stock !== '' ? Number(stock) : -1;
-
       const variantsVal = variants.filter(v => v.name && v.options.some(o => o.trim()));
+
       if (editingId) {
         const { data, error } = await supabase
           .from('products')
-          .update({ name, price: Number(price), stock: stockVal, description, variants: variantsVal, image_url: imageUrl })
+          .update({ name, price: Number(price), stock: stockVal, description, variants: variantsVal, image_url: imageUrl, image_urls: finalUrls })
           .eq('id', editingId)
           .eq('vendor_id', user.vendor.id)
           .select()
@@ -129,15 +173,14 @@ export default function ProductManager({ user, setUser }) {
       } else {
         const { data, error } = await supabase
           .from('products')
-          .insert({ vendor_id: user.vendor.id, name, price: Number(price), stock: stockVal, description, variants: variantsVal, image_url: imageUrl })
+          .insert({ vendor_id: user.vendor.id, name, price: Number(price), stock: stockVal, description, variants: variantsVal, image_url: imageUrl, image_urls: finalUrls })
           .select()
           .single();
         if (error) throw error;
-        
-        // We still track uploaded_count for your analytics later!
+
         const newCount = uploadedCount + 1;
         await supabase.from('vendors').update({ uploaded_count: newCount }).eq('id', user.vendor.id);
-        
+
         setProducts(prev => [data, ...prev]);
         setUser({ ...user, vendor: { ...user.vendor, uploaded_count: newCount } });
         toast.success('Product added to shelf!');
@@ -150,22 +193,28 @@ export default function ProductManager({ user, setUser }) {
     }
   };
 
-  const confirmDelete = async (pid) => {
-    if (!window.confirm('Delete this product?')) return;
+  const confirmDelete = (pid) => setDeleteConfirmId(pid);
+
+  const doDelete = async () => {
+    const pid = deleteConfirmId;
+    if (!pid) return;
+    setDeleteConfirming(true);
     try {
       const { error } = await supabase
         .from('products').delete().eq('id', pid).eq('vendor_id', user.vendor.id);
       if (error) throw error;
 
-      // Decrement uploaded_count
       const newCount = Math.max(0, uploadedCount - 1);
       await supabase.from('vendors').update({ uploaded_count: newCount }).eq('id', user.vendor.id);
-      
+
       setProducts(prev => prev.filter(p => p.id !== pid));
       setUser({ ...user, vendor: { ...user.vendor, uploaded_count: newCount } });
       toast.success('Product removed');
+      setDeleteConfirmId(null);
     } catch {
       toast.error('Failed to delete');
+    } finally {
+      setDeleteConfirming(false);
     }
   };
 
@@ -218,12 +267,18 @@ export default function ProductManager({ user, setUser }) {
     setStock(product.stock != null && product.stock >= 0 ? String(product.stock) : '');
     setDescription(product.description || '');
     setVariants(Array.isArray(product.variants) && product.variants.length > 0 ? product.variants : []);
-    setImagePreview(product.image_url);
+    const existingUrls = product.image_urls?.length ? product.image_urls : product.image_url ? [product.image_url] : [];
+    setPendingImages(existingUrls.map(url => ({ url, file: null })));
     setEditingId(product.id);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const inputCls = `w-full px-5 py-4 bg-slate-50/50 dark:bg-slate-900/50 border-2 border-slate-100 dark:border-slate-800 rounded-2xl outline-none focus:border-emerald-500 dark:focus:border-emerald-500 focus:bg-white dark:focus:bg-slate-900 focus:ring-4 focus:ring-emerald-500/10 transition-all font-bold text-slate-800 dark:text-white text-sm placeholder-slate-400 dark:placeholder-slate-500`;
+
+  const getImages = (p) =>
+    p?.image_urls?.length ? p.image_urls : p?.image_url ? [p.image_url] : [];
+
+  const openPreview = (p) => { setPreviewProduct(p); setPreviewIndex(0); };
 
   return (
     <div className="relative min-h-full transition-colors duration-300">
@@ -330,26 +385,97 @@ export default function ProductManager({ user, setUser }) {
                 </div>
               )}
 
-              <div onClick={() => fileInputRef.current?.click()} className={`h-40 border-4 border-dashed rounded-[2rem] flex flex-col items-center justify-center cursor-pointer transition-all duration-300 group relative overflow-hidden bg-slate-50 dark:bg-slate-900/50 ${imagePreview ? 'border-emerald-500 dark:border-emerald-500' : 'border-slate-200 dark:border-slate-800 hover:border-emerald-300 dark:hover:border-emerald-500/50 hover:bg-emerald-50/30 dark:hover:bg-emerald-500/5'}`}>
-                <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleFileSelect} />
-                {imagePreview ? (
-                  <>
-                    <img src={imagePreview} className="w-full h-full object-cover rounded-[1.7rem] shadow-sm z-10" />
-                    <div className="absolute inset-0 bg-black/50 z-20 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity backdrop-blur-sm">
-                      <span className="text-white text-xs font-bold uppercase tracking-widest flex items-center gap-2"><ImageIcon size={16} /> Change Photo</span>
+              {/* ── IMAGE UPLOAD ── */}
+              <input
+                type="file"
+                ref={fileInputRef}
+                className="hidden"
+                multiple={isPaidUser}
+                accept={isPremiumUser ? 'image/*' : 'image/jpeg,image/jpg,image/png,image/webp'}
+                onChange={handleFileSelect}
+              />
+
+              {!isPaidUser ? (
+                /* FREE — original single big dropzone */
+                <div onClick={() => fileInputRef.current?.click()} className={`h-40 border-4 border-dashed rounded-[2rem] flex flex-col items-center justify-center cursor-pointer transition-all duration-300 group relative overflow-hidden bg-slate-50 dark:bg-slate-900/50 ${pendingImages[0] ? 'border-emerald-500 dark:border-emerald-500' : 'border-slate-200 dark:border-slate-800 hover:border-emerald-300 dark:hover:border-emerald-500/50 hover:bg-emerald-50/30 dark:hover:bg-emerald-500/5'}`}>
+                  {pendingImages[0] ? (
+                    <>
+                      <img src={pendingImages[0].url} className="w-full h-full object-cover rounded-[1.7rem] shadow-sm z-10" />
+                      <div className="absolute inset-0 bg-black/50 z-20 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity backdrop-blur-sm">
+                        <span className="text-white text-xs font-bold uppercase tracking-widest flex items-center gap-2"><ImageIcon size={16} /> Change Photo</span>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="text-center z-10">
+                      <div className="w-12 h-12 bg-white dark:bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-3 shadow-sm border border-slate-100 dark:border-slate-700 group-hover:scale-110 group-hover:bg-emerald-500 transition-all text-slate-400 dark:text-slate-500 group-hover:text-white">
+                        <UploadCloud size={20} />
+                      </div>
+                      <span className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest transition-colors group-hover:text-emerald-600 dark:group-hover:text-emerald-400">
+                        Upload Photo{!editingId && <span className="text-red-500"> *</span>}
+                      </span>
                     </div>
-                  </>
-                ) : (
-                  <div className="text-center z-10">
-                    <div className="w-12 h-12 bg-white dark:bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-3 shadow-sm border border-slate-100 dark:border-slate-700 group-hover:scale-110 group-hover:bg-emerald-500 transition-all text-slate-400 dark:text-slate-500 group-hover:text-white">
-                      <UploadCloud size={20} />
-                    </div>
-                    <span className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest transition-colors group-hover:text-emerald-600 dark:group-hover:text-emerald-400">
-                      Upload Photo{!editingId && <span className="text-red-500"> *</span>}
+                  )}
+                </div>
+              ) : (
+                /* PRO / PREMIUM — bulk gallery */
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-2">
+                      Photos{!editingId && <span className="text-red-500"> *</span>}
+                    </label>
+                    <span className="text-[9px] font-bold text-slate-400 dark:text-slate-500">
+                      {pendingImages.length}/{maxImages}
+                      {isPremiumUser && <span className="ml-1 text-purple-400">· GIF ok</span>}
                     </span>
                   </div>
-                )}
-              </div>
+
+                  {pendingImages.length === 0 ? (
+                    /* Empty — big dropzone that opens multi-select */
+                    <div onClick={() => fileInputRef.current?.click()} className="h-40 border-4 border-dashed border-slate-200 dark:border-slate-800 hover:border-emerald-300 dark:hover:border-emerald-500/50 hover:bg-emerald-50/30 dark:hover:bg-emerald-500/5 rounded-[2rem] flex flex-col items-center justify-center cursor-pointer transition-all duration-300 group bg-slate-50 dark:bg-slate-900/50">
+                      <div className="w-12 h-12 bg-white dark:bg-slate-800 rounded-full flex items-center justify-center mb-3 shadow-sm border border-slate-100 dark:border-slate-700 group-hover:scale-110 group-hover:bg-emerald-500 transition-all text-slate-400 dark:text-slate-500 group-hover:text-white">
+                        <UploadCloud size={20} />
+                      </div>
+                      <span className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest group-hover:text-emerald-600 dark:group-hover:text-emerald-400">
+                        Select up to {maxImages} photos at once{!editingId && <span className="text-red-500"> *</span>}
+                      </span>
+                    </div>
+                  ) : (
+                    <>
+                      {/* Primary large preview */}
+                      <div className="relative h-40 rounded-[2rem] overflow-hidden border-2 border-emerald-500 group bg-slate-100 dark:bg-slate-800">
+                        <img src={pendingImages[0].url} className="w-full h-full object-cover" />
+                        <span className="absolute bottom-2 left-2 text-[8px] font-black text-white bg-emerald-500/90 px-2 py-0.5 rounded-full uppercase tracking-widest">Primary</span>
+                        <button onClick={() => setPendingImages(prev => prev.filter((_, i) => i !== 0))}
+                          className="absolute top-2 right-2 w-6 h-6 bg-black/60 hover:bg-black/80 text-white rounded-full flex items-center justify-center transition">
+                          <X size={12} />
+                        </button>
+                      </div>
+                      {/* Thumbnail grid of the rest + add tile */}
+                      <div className="grid grid-cols-4 gap-2">
+                        {pendingImages.slice(1).map((item, i) => {
+                          const idx = i + 1;
+                          return (
+                            <div key={idx} className="relative aspect-square rounded-2xl overflow-hidden border-2 border-slate-200 dark:border-slate-700 group">
+                              <img src={item.url} className="w-full h-full object-cover" />
+                              <button onClick={() => setPendingImages(prev => prev.filter((_, j) => j !== idx))}
+                                className="absolute top-1 right-1 w-5 h-5 bg-black/60 hover:bg-black/80 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                <X size={10} />
+                              </button>
+                            </div>
+                          );
+                        })}
+                        {pendingImages.length < maxImages && (
+                          <div onClick={() => fileInputRef.current?.click()}
+                            className="aspect-square rounded-2xl border-2 border-dashed border-slate-200 dark:border-slate-700 hover:border-emerald-400 dark:hover:border-emerald-500 hover:bg-emerald-50/50 dark:hover:bg-emerald-500/5 flex flex-col items-center justify-center cursor-pointer transition-all group">
+                            <Plus size={18} className="text-slate-300 dark:text-slate-600 group-hover:text-emerald-500 transition-colors" />
+                            <span className="text-[7px] font-black text-slate-300 dark:text-slate-600 group-hover:text-emerald-500 mt-0.5 uppercase">Add more</span>
+                          </div>
+                        )}
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
 
               {isPaidUser && !editingId && (
                 <div className="pt-2">
@@ -453,7 +579,9 @@ export default function ProductManager({ user, setUser }) {
                     </div>
                   )}
                   
-                  <div className="aspect-square bg-slate-50 dark:bg-slate-800 rounded-[2rem] overflow-hidden mb-4 relative transition-colors">
+                  <div
+                    onClick={(e) => { if (!selectionMode) { e.stopPropagation(); openPreview(p); } }}
+                    className={`aspect-square bg-slate-50 dark:bg-slate-800 rounded-[2rem] overflow-hidden mb-4 relative transition-colors ${!selectionMode ? 'cursor-pointer' : ''}`}>
                     {p.image_url ? (
                       <>
                         <img src={p.image_url} loading="lazy" className="w-full h-full object-cover group-hover:scale-110 transition duration-700" />
@@ -461,6 +589,11 @@ export default function ProductManager({ user, setUser }) {
                       </>
                     ) : (
                       <div className="w-full h-full flex items-center justify-center text-slate-200 dark:text-slate-700"><ImageIcon size={40} /></div>
+                    )}
+                    {getImages(p).length > 1 && (
+                      <div className="absolute top-3 left-3 bg-black/50 backdrop-blur-md px-2 py-1 rounded-lg shadow-sm flex items-center gap-1 text-white text-[9px] font-black">
+                        <ImageIcon size={10} /> {getImages(p).length}
+                      </div>
                     )}
                     <div className="absolute top-3 right-3 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md px-2 py-1 rounded-lg shadow-sm border border-slate-100 dark:border-slate-700">
                       <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></div>
@@ -552,7 +685,7 @@ export default function ProductManager({ user, setUser }) {
                       <code className="text-xs text-slate-600 dark:text-slate-300 font-mono break-all">
                         name* , price* , description , image_url , stock
                       </code>
-                      <p className="text-[10px] text-slate-400 mt-2">Only <strong className="text-slate-600 dark:text-slate-300">name</strong> and <strong className="text-slate-600 dark:text-slate-300">price</strong> are required. Maximum 50 products per import.</p>
+                      <p className="text-[10px] text-slate-400 mt-2">Only <strong className="text-slate-600 dark:text-slate-300">name</strong> and <strong className="text-slate-600 dark:text-slate-300">price</strong> are required. Maximum 50 products per import. For a photo gallery, put several image links in <strong className="text-slate-600 dark:text-slate-300">image_url</strong> separated by <strong className="text-slate-600 dark:text-slate-300">|</strong>.</p>
                     </div>
 
                     {/* File dropzone */}
@@ -677,9 +810,9 @@ export default function ProductManager({ user, setUser }) {
                         for (const row of csvRows) {
                           if (!row.name || !row.price) { skipped++; continue; }
                           const stockVal = row.stock !== undefined && row.stock !== '' ? Number(row.stock) : -1;
-                          const { error } = await supabase.from('products').upsert(
-                            { vendor_id: user.vendor.id, name: row.name.trim(), price: Number(row.price), stock: stockVal, description: row.description?.trim() || '', image_url: row.image_url?.trim() || '' },
-                            { onConflict: 'name', ignoreDuplicates: false }
+                          const urls = (row.image_url?.trim() || '').split('|').map(u => u.trim()).filter(Boolean);
+                          const { error } = await supabase.from('products').insert(
+                            { vendor_id: user.vendor.id, name: row.name.trim(), price: Number(row.price), stock: stockVal, description: row.description?.trim() || '', image_url: urls[0] || '', image_urls: urls }
                           );
                           if (error) { errors.push(`${row.name}: ${error.message}`); skipped++; }
                           else success++;
@@ -841,14 +974,18 @@ export default function ProductManager({ user, setUser }) {
                     if (missing.length > 0) return toast.error(`${missing.length} row(s) are missing photos`);
                     setMultiSaving(true);
                     try {
-                      const inserts = await Promise.all(valid.map(async r => ({
-                        vendor_id: user.vendor.id,
-                        name: r.name.trim(),
-                        price: Number(r.price),
-                        description: r.description.trim() || '',
-                        stock: r.stock !== '' ? Number(r.stock) : -1,
-                        image_url: await uploadImage(r.imageFile),
-                      })));
+                      const inserts = await Promise.all(valid.map(async r => {
+                        const url = await uploadImage(r.imageFile);
+                        return {
+                          vendor_id: user.vendor.id,
+                          name: r.name.trim(),
+                          price: Number(r.price),
+                          description: r.description.trim() || '',
+                          stock: r.stock !== '' ? Number(r.stock) : -1,
+                          image_url: url,
+                          image_urls: [url],
+                        };
+                      }));
                       const { data, error } = await supabase.from('products').insert(inserts).select();
                       if (error) throw error;
                       const newCount = uploadedCount + valid.length;
@@ -871,6 +1008,85 @@ export default function ProductManager({ user, setUser }) {
             </div>
           </div>
         )}
+
+        {/* ── INVENTORY PREVIEW MODAL ── */}
+        {previewProduct && (() => {
+          const imgs = getImages(previewProduct);
+          const hasMany = imgs.length > 1;
+          const cur = imgs[previewIndex] ?? null;
+          return (
+            <div className="fixed inset-0 z-[70] flex items-end sm:items-center justify-center sm:p-4 bg-slate-900/80 backdrop-blur-md" onClick={() => setPreviewProduct(null)}>
+              <div className="relative bg-white dark:bg-slate-900 w-full sm:w-[95vw] sm:max-w-4xl rounded-t-[2.5rem] sm:rounded-[2.5rem] overflow-hidden shadow-2xl flex flex-col lg:flex-row max-h-[92vh] lg:max-h-[85vh]" onClick={e => e.stopPropagation()}>
+                {/* Close button — top of whole modal */}
+                <button onClick={() => setPreviewProduct(null)} className="absolute top-3 right-3 z-20 p-2 bg-black/40 text-white backdrop-blur-md rounded-full hover:bg-black/60 transition active:scale-95">
+                  <X size={18} />
+                </button>
+                {/* IMAGE PANEL */}
+                <div className="relative lg:w-1/2 flex-shrink-0 bg-slate-100 dark:bg-slate-800 flex items-center justify-center" style={{ minHeight: '40vh' }}>
+                  {cur
+                    ? <img src={cur} className="w-full h-full object-contain max-h-[55vh] lg:max-h-[85vh]" alt={previewProduct.name} />
+                    : <div className="py-24 text-slate-300"><ImageIcon size={48} /></div>}
+                  {hasMany && (
+                    <>
+                      <button onClick={() => setPreviewIndex(i => (i - 1 + imgs.length) % imgs.length)} className="absolute left-3 top-1/2 -translate-y-1/2 p-2 bg-black/40 text-white backdrop-blur-md rounded-full hover:bg-black/60 transition active:scale-90"><ChevronLeft size={18} /></button>
+                      <button onClick={() => setPreviewIndex(i => (i + 1) % imgs.length)} className="absolute right-3 top-1/2 -translate-y-1/2 p-2 bg-black/40 text-white backdrop-blur-md rounded-full hover:bg-black/60 transition active:scale-90"><ChevronRight size={18} /></button>
+                      <div className="absolute bottom-3 left-0 right-0 flex justify-center gap-1.5">
+                        {imgs.map((_, i) => (
+                          <button key={i} onClick={() => setPreviewIndex(i)} className={`rounded-full transition-all ${i === previewIndex ? 'bg-white w-5 h-2' : 'bg-white/50 w-2 h-2'}`} />
+                        ))}
+                      </div>
+                    </>
+                  )}
+                </div>
+                {/* DETAILS PANEL */}
+                <div className="lg:w-1/2 flex flex-col overflow-y-auto p-6 sm:p-8">
+                  <div className="flex justify-between items-start gap-3 mb-3">
+                    <h2 className="text-2xl font-black text-slate-900 dark:text-white leading-tight">{previewProduct.name}</h2>
+                    <span className="text-lg font-bold text-emerald-500 bg-emerald-50 dark:bg-emerald-500/10 px-3 py-1 rounded-lg flex-shrink-0">{pmSymbol}{Number(previewProduct.price).toLocaleString()}</span>
+                  </div>
+                  {isPaidUser && previewProduct.stock >= 0 && (
+                    <p className={`text-[11px] font-bold mb-4 ${previewProduct.stock === 0 ? 'text-red-500' : 'text-slate-400'}`}>
+                      {previewProduct.stock === 0 ? 'Out of stock' : `${previewProduct.stock} in stock`}
+                    </p>
+                  )}
+                  {previewProduct.description && (
+                    <p className="text-sm font-medium leading-relaxed text-slate-500 dark:text-slate-400 mb-5">{previewProduct.description}</p>
+                  )}
+                  {Array.isArray(previewProduct.variants) && previewProduct.variants.length > 0 && (
+                    <div className="space-y-3 mb-6">
+                      {previewProduct.variants.map((group, gi) => (
+                        <div key={gi}>
+                          <p className="text-[10px] font-black uppercase tracking-widest mb-2 text-slate-400 dark:text-slate-500">{group.name}</p>
+                          <div className="flex flex-wrap gap-2">
+                            {group.options.filter(o => o.trim()).map((opt, oi) => {
+                              const c = resolveColor(opt);
+                              return (
+                                <span key={oi} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border-2 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300">
+                                  {c && <span className="w-3 h-3 rounded-full border border-black/10" style={{ backgroundColor: c }} />}
+                                  {opt}
+                                </span>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  <div className="flex gap-3 mt-auto pt-4">
+                    <button onClick={() => { const p = previewProduct; setPreviewProduct(null); startEdit(p); }}
+                      className="flex-1 py-3.5 rounded-2xl font-black text-xs uppercase tracking-widest bg-amber-500 hover:bg-amber-600 text-white transition-all flex items-center justify-center gap-2 shadow-lg shadow-amber-500/20">
+                      <Pencil size={14} /> Edit
+                    </button>
+                    <button onClick={() => { const id = previewProduct.id; setPreviewProduct(null); confirmDelete(id); }}
+                      className="px-5 py-3.5 rounded-2xl font-black text-xs uppercase tracking-widest bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-red-50 dark:hover:bg-red-500/10 hover:text-red-500 transition-all flex items-center justify-center gap-2">
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
 
         {/* ── BULK RESTOCK ACTION BAR ── */}
         {selectionMode && selectedIds.size > 0 && (
@@ -910,6 +1126,36 @@ export default function ProductManager({ user, setUser }) {
                 {bulkRestocking && <Loader2 size={11} className="animate-spin" />}
                 Restock
               </button>
+            </div>
+          </div>
+        )}
+
+        {/* ── DELETE CONFIRMATION MODAL ── */}
+        {deleteConfirmId && (
+          <div className="fixed inset-0 z-[200] flex items-center justify-center p-6 bg-slate-900/70 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => !deleteConfirming && setDeleteConfirmId(null)}>
+            <div className="bg-white dark:bg-slate-900 rounded-[2.5rem] p-8 max-w-xs w-full shadow-2xl text-center relative overflow-hidden animate-in zoom-in-95 duration-200 border border-slate-100 dark:border-slate-800" onClick={e => e.stopPropagation()}>
+              <div className="absolute top-0 left-0 w-full h-1.5 bg-red-500 rounded-t-full" />
+              <div className="w-14 h-14 bg-red-50 dark:bg-red-500/10 text-red-500 rounded-3xl flex items-center justify-center mx-auto mb-5 border border-red-100 dark:border-red-500/20">
+                <Trash2 size={24} strokeWidth={2.5} />
+              </div>
+              <h3 className="text-xl font-black text-slate-900 dark:text-white mb-2 tracking-tight">Delete Product?</h3>
+              <p className="text-sm text-slate-400 font-medium mb-7">This will permanently remove the product from your store. This cannot be undone.</p>
+              <div className="flex flex-col gap-3">
+                <button
+                  onClick={doDelete}
+                  disabled={deleteConfirming}
+                  className="w-full bg-red-500 hover:bg-red-600 disabled:opacity-50 text-white py-3.5 rounded-2xl font-black text-xs uppercase tracking-[0.15em] shadow-lg shadow-red-500/20 transition active:scale-95"
+                >
+                  {deleteConfirming ? 'Deleting...' : 'Yes, Delete'}
+                </button>
+                <button
+                  onClick={() => setDeleteConfirmId(null)}
+                  disabled={deleteConfirming}
+                  className="w-full bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-300 py-3.5 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-slate-200 dark:hover:bg-slate-700 transition"
+                >
+                  Cancel
+                </button>
+              </div>
             </div>
           </div>
         )}
