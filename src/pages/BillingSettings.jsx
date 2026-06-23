@@ -5,7 +5,7 @@ import { SUBSCRIPTION_PLANS, formatPrice, getPricing } from '../data/plans';
 import { supabase } from '../supabaseClient';
 import { toast } from 'react-hot-toast';
 import PaymentSuccess from '../components/PaymentSuccess';
-import { activatePlan } from '../components/UpgradeModal';
+import { activatePlan } from '../components/UpgradeModal'; //Activate
 
 const PLAN_META = {
   free:    { label: 'Free',    icon: null,  color: 'text-slate-500', bg: 'bg-slate-100 dark:bg-slate-800' },
