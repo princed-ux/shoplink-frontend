@@ -330,22 +330,21 @@ export default function Storefront() {
     const orderNum = `ORD-${Math.floor(10000 + Math.random() * 90000)}`;
 
     try {
-      // 3. Save order to Supabase
-      const { data: savedOrder, error } = await supabase.from('orders').insert({
+      // 3. Save order to Supabase — no .select() so anon users aren't blocked by SELECT RLS
+      const orderPayload = {
         vendor_id:    vendor.id,
         order_number: orderNum,
         items:        orderItems,
         total:        total,
-      }).select().single();
+      };
+      const { error } = await supabase.from('orders').insert(orderPayload);
 
       if (error) throw error;
 
       // 4a. Trigger WhatsApp automation for Pro/Premium vendors (fire and forget)
-      if (savedOrder) {
-        supabase.functions.invoke('send-whatsapp-notification', {
-          body: { order: savedOrder },
-        }).catch(e => console.warn('WhatsApp notification skipped:', e.message));
-      }
+      supabase.functions.invoke('send-whatsapp-notification', {
+        body: { order: orderPayload },
+      }).catch(e => console.warn('WhatsApp notification skipped:', e.message));
 
       // 4b. Format Dynamic WhatsApp Message for customer to send
       const date = new Date().toLocaleDateString('en-GB');
@@ -398,14 +397,16 @@ export default function Storefront() {
     </div>
   );
 
-  const theme         = vendor.storefront_theme || 'minimal';
-  const bgUrl         = vendor.storefront_bg_url || null;
-
   // Treat the plan as free if the subscription has expired
   const subActive     = !vendor.plan_expires_at || new Date(vendor.plan_expires_at) > new Date();
   const effectivePlan = subActive ? (vendor.plan_type?.toLowerCase() || 'free') : 'free';
   const isPro         = effectivePlan === 'pro' || effectivePlan === 'premium';
   const isPremium     = effectivePlan === 'premium';
+
+  // Theme and background only apply on paid plans — free plan always gets minimal
+  const theme         = isPro ? (vendor.storefront_theme || 'minimal') : 'minimal';
+  const bgUrl         = isPro ? (vendor.storefront_bg_url || null) : null;
+
   const vendorCountry = vendor?.country || 'NG';
   const vendorCurrency = getCurrency(vendorCountry);
   const currencySymbol = getCurrencySymbol(vendorCurrency);
@@ -660,14 +661,14 @@ export default function Storefront() {
 
       </main>
 
-      {/* ── POWERED BY BAR — full-width bottom strip, visible on Free stores only ── */}
-      {!(isPro || isPremium) && (
-        <div className={`fixed left-0 right-0 z-30 transition-all duration-300 ${totalItems > 0 ? 'bottom-24' : 'bottom-0'}`}>
+      {/* ── POWERED BY BAR — full-width bottom strip, hidden when checkout bar is open ── */}
+      {!(isPro || isPremium) && totalItems === 0 && (
+        <div className="fixed left-0 right-0 z-30 bottom-0">
           <Link to="/"
             className={`flex items-center justify-center gap-2 w-full py-3 text-[10px] font-black uppercase tracking-widest border-t backdrop-blur-md transition-colors
               ${styles.isDark ? 'bg-slate-900/90 border-white/10 text-white/50 hover:text-white/70' : 'bg-white/95 border-slate-200/80 text-slate-400 hover:text-slate-600'}`}>
             <Zap size={11} className="text-emerald-500 flex-shrink-0" />
-            Powered by ShopLink
+            Powered by ShopLink.vi
           </Link>
         </div>
       )}
