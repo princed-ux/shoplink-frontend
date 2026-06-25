@@ -248,6 +248,8 @@ export default function Onboarding({ user, setUser }) {
         .from('vendors').select('id').eq('phone', formattedPhone).maybeSingle();
       if (existingPhone) throw new Error('This phone number is already linked to another store.');
 
+      const refCode = sessionStorage.getItem('shoplink_ref') || null;
+
       const { data: vendor, error: vendorError } = await supabase
         .from('vendors')
         .insert({
@@ -265,6 +267,7 @@ export default function Onboarding({ user, setUser }) {
           is_admin:        false,
           is_suspended:    false,
           signup_platform: 'web',
+          referred_by:     refCode,
         })
         .select()
         .single();
@@ -275,6 +278,7 @@ export default function Onboarding({ user, setUser }) {
         throw new Error(vendorError.message);
       }
 
+      if (refCode) sessionStorage.removeItem('shoplink_ref');
       setUser({ ...user, vendor });
       toast.success('Your store is live!');
       setTimeout(() => navigate('/dashboard'), 900);

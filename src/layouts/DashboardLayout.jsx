@@ -53,6 +53,7 @@ const NAV_MAIN = [
   { to: '/dashboard/analytics', label: 'Analytics',   icon: BarChart3 },
   { to: '/dashboard/orders',    label: 'Orders',      icon: Package },
   { to: '/dashboard/share',     label: 'Share Store', icon: Share2 },
+  { to: '/dashboard/referral',  label: 'Referrals',   icon: Gift },
 ];
 
 const NAV_SETTINGS = [

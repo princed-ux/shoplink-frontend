@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useOutletContext, useLocation } from 'react-router-dom';
-import { CreditCard, Zap, Crown, Check, ArrowRight, Calendar, AlertCircle, X } from 'lucide-react';
+import { CreditCard, Zap, Crown, Check, ArrowRight, Calendar, AlertCircle, X, HelpCircle, ChevronDown } from 'lucide-react';
 import { SUBSCRIPTION_PLANS, formatPrice, getPricing } from '../data/plans';
 import { supabase } from '../supabaseClient';
 import { toast } from 'react-hot-toast';
@@ -25,6 +25,30 @@ const CANCEL_REASONS = [
 export default function BillingSettings({ user, setUser }) {
   const { openUpgradeModal } = useOutletContext() || {};
   const [showCancelModal, setShowCancelModal] = useState(false);
+  const [openFaq, setOpenFaq]               = useState(null);
+
+  const FAQ_ITEMS = [
+    {
+      q: 'What is the difference between Free, Pro, and Premium?',
+      a: 'Free gives you a full working store — unlimited products, WhatsApp checkout, and a shareable link — forever, no card needed. Pro adds custom themes, a verified store badge, and advanced analytics. Premium includes everything in Pro plus AI-powered auto-replies on WhatsApp and priority support. You can stay on Free as long as you like.',
+    },
+    {
+      q: 'What happens when I upgrade from Pro to Premium?',
+      a: 'Your Pro billing cycle ends immediately the moment you upgrade. A new Premium subscription starts today. You will not be charged for Pro again, but any remaining days on your Pro cycle are not refunded or carried over. Premium billing runs from today.',
+    },
+    {
+      q: 'Can I go back from Premium to Pro?',
+      a: 'No — Premium is the highest tier and there is no direct downgrade path. If you cancel Premium, your store reverts to the Free plan at the end of your current billing period. You would need to subscribe to Pro again separately after that.',
+    },
+    {
+      q: 'What happens when my plan expires?',
+      a: 'Your store moves back to Free automatically. No products, orders, or data are deleted. You keep your store link and everything in it — you just lose paid features (themes, badge, analytics, auto-replies) until you renew.',
+    },
+    {
+      q: 'How do referral rewards interact with my paid plan?',
+      a: 'Referral rewards add free months directly to your plan expiry — they never reset or shorten it. If you are on Premium and earn a Pro reward (Tier 1: 1 month), it is automatically upgraded to 1 month of Premium so your plan level never goes backwards. All tiers stack, so hitting multiple milestones means multiple free months added.',
+    },
+  ];
   const [selectedReason, setSelectedReason] = useState('');
   const [cancelling, setCancelling] = useState(false);
   const [successPlan, setSuccessPlan] = useState(null);
@@ -282,6 +306,37 @@ export default function BillingSettings({ user, setUser }) {
           </div>
         </div>
       )}
+
+      {/* How Plans & Billing Work — FAQ */}
+      <div className={cardCls}>
+        <div className="flex items-center gap-3 mb-5">
+          <div className="w-9 h-9 bg-slate-100 dark:bg-slate-700 rounded-xl flex items-center justify-center flex-shrink-0">
+            <HelpCircle size={16} className="text-slate-500 dark:text-slate-400" />
+          </div>
+          <h3 className="font-black text-slate-900 dark:text-white">How Plans & Billing Work</h3>
+        </div>
+        <div className="space-y-2">
+          {FAQ_ITEMS.map((item, i) => (
+            <div key={i} className="border border-slate-100 dark:border-slate-700 rounded-2xl overflow-hidden">
+              <button
+                onClick={() => setOpenFaq(openFaq === i ? null : i)}
+                className="w-full flex items-center justify-between gap-3 p-4 text-left hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors"
+              >
+                <span className="text-sm font-black text-slate-800 dark:text-white leading-snug pr-2">{item.q}</span>
+                <ChevronDown
+                  size={15}
+                  className={`text-slate-400 flex-shrink-0 transition-transform duration-200 ${openFaq === i ? 'rotate-180' : ''}`}
+                />
+              </button>
+              {openFaq === i && (
+                <div className="px-4 pb-4">
+                  <p className="text-[12px] text-slate-500 dark:text-slate-400 font-medium leading-relaxed">{item.a}</p>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
 
       {/* Support */}
       <div className="text-center text-xs text-slate-400 font-medium">

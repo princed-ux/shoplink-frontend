@@ -9,7 +9,8 @@ export const PREMIUM_EXCLUSIVE_THEMES = ['royal', 'diamond', 'galaxy', 'cybercit
 export const PLAN_LEVELS = { free: 0, pro: 1, premium: 2 };
 
 export const MAX_PRODUCT_IMAGES = { free: 1, pro: 5, premium: 10 };
-export const GIF_ENABLED = { free: false, pro: false, premium: true };
+export const GIF_ENABLED        = { free: false, pro: false, premium: true };
+export const MAX_GIF_PER_PRODUCT = { free: 0, pro: 0, premium: 1 };
 
 export function isSubscriptionActive(vendor) {
   if (!vendor?.plan_expires_at) return true; // free plan has no expiry
@@ -178,6 +179,7 @@ export const SUBSCRIPTION_PLANS = [
     tagline: 'Everything you need to start selling.',
     features: [
       'Unlimited products',
+      '📷 1 product photo per item',
       'WhatsApp order collection',
       'Basic analytics (7-day)',
       '3 storefront themes (Minimal, Dark, Gradient)',
@@ -211,6 +213,7 @@ export const SUBSCRIPTION_PLANS = [
     badgeColor: '#3b82f6',
     features: [
       'Everything in Free',
+      '📷 Up to 5 product photos per item (create a gallery)',
       '🔵 Blue verified badge on storefront',
       '12 exclusive themes (Bubbles, Aurora, Neon, Sunset, Ocean, Candy, Midnight, Forest, Lavender + Custom)',
       'Custom background image upload',
@@ -239,6 +242,7 @@ export const SUBSCRIPTION_PLANS = [
     badgeColor: '#f59e0b',
     features: [
       'Everything in Pro',
+      '🖼️ Up to 10 product photos per item + 1 animated GIF',
       '🟡 Gold verified badge on storefront',
       '8 exclusive Premium themes (Royal, Diamond, Galaxy, Cyber City, Golden Empire, Arctic Crystal, Volcano, Luxury Black)',
       'Premium analytics — 90-day history, avg order value, monthly revenue trends',

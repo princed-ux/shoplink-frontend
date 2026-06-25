@@ -22,6 +22,7 @@ import DomainManager     from './pages/DomainManager';
 import AccountSettings   from './pages/AccountSettings';
 import HelpCenter        from './pages/HelpCenter';
 import BillingSettings   from './pages/BillingSettings';
+import ReferralPage      from './pages/ReferralPage';
 
 import Storefront        from './pages/Storefront';
 import StaffPortal       from './pages/StaffPortal';
@@ -366,6 +367,7 @@ export default function App() {
             <Route path="domain"   element={<DomainManager user={user} setUser={handleSetUser} />} />
             <Route path="account"  element={<AccountSettings user={user} setUser={handleSetUser} />} />
             <Route path="billing"  element={<BillingSettings user={user} setUser={handleSetUser} />} />
+            <Route path="referral" element={<ReferralPage user={user} setUser={handleSetUser} />} />
             <Route path="help"     element={<HelpCenter user={user} />} />
           </Route>
 

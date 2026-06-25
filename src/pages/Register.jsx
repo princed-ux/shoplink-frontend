@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { ArrowRight, Loader2, ArrowLeft, CheckCircle2, XCircle, Eye, EyeOff, Mail, Lock } from 'lucide-react';
 import { toast, Toaster } from 'react-hot-toast';
 import { supabase } from '../supabaseClient';
@@ -31,6 +31,14 @@ export default function Register({ setUser }) {
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
+
+  // Capture referral code from ?ref= URL param and persist across OAuth redirect
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const ref = params.get('ref');
+    if (ref) sessionStorage.setItem('shoplink_ref', ref.trim().toLowerCase().replace(/[^a-z0-9-]/g, ''));
+  }, [location.search]);
 
   // Handle Google OAuth redirect callback
   useEffect(() => {

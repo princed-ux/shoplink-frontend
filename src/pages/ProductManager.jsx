@@ -4,7 +4,7 @@ import { toast } from 'react-hot-toast';
 import Papa from 'papaparse';
 import { supabase } from '../supabaseClient';
 import { getCurrency } from '../data/countries';
-import { getCurrencySymbol, hasPlan, MAX_PRODUCT_IMAGES, GIF_ENABLED } from '../data/plans';
+import { getCurrencySymbol, hasPlan, MAX_PRODUCT_IMAGES, GIF_ENABLED, MAX_GIF_PER_PRODUCT } from '../data/plans';
 import { resolveColor } from '../data/colors';
 
 export default function ProductManager({ user, setUser }) {
@@ -12,6 +12,7 @@ export default function ProductManager({ user, setUser }) {
   const isPremiumUser = hasPlan(user?.vendor, 'premium');
   const effectivePlan = isPremiumUser ? 'premium' : isPaidUser ? 'pro' : 'free';
   const maxImages = MAX_PRODUCT_IMAGES[effectivePlan];
+  const maxGifs   = MAX_GIF_PER_PRODUCT[effectivePlan];
   const pmCurrency = getCurrency(user?.vendor?.country || 'NG');
   const pmSymbol = getCurrencySymbol(pmCurrency);
 
@@ -100,10 +101,20 @@ export default function ProductManager({ user, setUser }) {
     let rejectedGif = false;
     let rejectedSize = false;
 
+    const existingGifCount = pendingImages.filter(img =>
+      (img.file && img.file.type === 'image/gif') ||
+      (!img.file && img.url && img.url.toLowerCase().includes('.gif'))
+    ).length;
+    let rejectedGifCap = false;
+
     for (const file of files) {
       if (accepted.length >= remaining) break;
       const isGif = file.type === 'image/gif';
       if (isGif && !GIF_ENABLED[effectivePlan]) { rejectedGif = true; continue; }
+      if (isGif) {
+        const pendingGifs = accepted.filter(a => a.file.type === 'image/gif').length;
+        if (existingGifCount + pendingGifs >= maxGifs) { rejectedGifCap = true; continue; }
+      }
       const maxSize = isGif ? 5 * 1024 * 1024 : 2 * 1024 * 1024;
       if (file.size > maxSize) { rejectedSize = true; continue; }
       accepted.push({ url: URL.createObjectURL(file), file });
@@ -114,6 +125,8 @@ export default function ProductManager({ user, setUser }) {
     }
     if (files.length > remaining) {
       toast.error(`Only ${remaining} more image${remaining > 1 ? 's' : ''} allowed on your plan`);
+    } else if (rejectedGifCap) {
+      toast.error(`Premium allows only ${maxGifs} GIF per product`);
     } else if (rejectedGif) {
       toast.error('GIF upload requires a Premium plan');
     } else if (rejectedSize) {
@@ -235,6 +248,30 @@ export default function ProductManager({ user, setUser }) {
       if (next.has(id)) next.delete(id); else next.add(id);
       return next;
     });
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedIds.size === 0) return;
+    const count = selectedIds.size;
+    if (!window.confirm(`Delete ${count} product${count > 1 ? 's' : ''}? This cannot be undone.`)) return;
+    setBulkRestocking(true);
+    try {
+      const ids = [...selectedIds];
+      const { error } = await supabase.from('products').delete().in('id', ids).eq('vendor_id', user.vendor.id);
+      if (error) throw error;
+      const newCount = Math.max(0, uploadedCount - count);
+      await supabase.from('vendors').update({ uploaded_count: newCount }).eq('id', user.vendor.id);
+      setProducts(prev => prev.filter(p => !selectedIds.has(p.id)));
+      setUser({ ...user, vendor: { ...user.vendor, uploaded_count: newCount } });
+      setSelectedIds(new Set());
+      setSelectionMode(false);
+      setBulkRestockVal('');
+      toast.success(`${count} product${count > 1 ? 's' : ''} deleted`);
+    } catch (err) {
+      toast.error(err.message || 'Delete failed');
+    } finally {
+      setBulkRestocking(false);
+    }
   };
 
   const handleBulkRestock = async (qty) => {
@@ -425,7 +462,7 @@ export default function ProductManager({ user, setUser }) {
                     </label>
                     <span className="text-[9px] font-bold text-slate-400 dark:text-slate-500">
                       {pendingImages.length}/{maxImages}
-                      {isPremiumUser && <span className="ml-1 text-purple-400">· GIF ok</span>}
+                      {isPremiumUser && <span className="ml-1 text-purple-400">· 1 GIF allowed</span>}
                     </span>
                   </div>
 
@@ -1127,6 +1164,13 @@ export default function ProductManager({ user, setUser }) {
                 Restock
               </button>
             </div>
+            <div className="w-px h-4 bg-white/20 dark:bg-slate-400/30" />
+            <button
+              onClick={handleBulkDelete}
+              disabled={bulkRestocking}
+              className="text-[11px] font-black text-red-400 dark:text-red-400 hover:text-red-300 dark:hover:text-red-300 disabled:opacity-50 transition-colors flex items-center gap-1">
+              <Trash2 size={11} /> Delete
+            </button>
           </div>
         )}
 

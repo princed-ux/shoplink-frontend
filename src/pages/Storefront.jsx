@@ -220,18 +220,38 @@ export default function Storefront() {
     fetchShop();
   }, [slug]);
 
-  // ── DYNAMIC PAGE TITLE ──
+  // ── DYNAMIC PAGE TITLE + OG TAGS ──
   useEffect(() => {
+    const setMeta = (selector, attr, value) => {
+      let el = document.querySelector(selector);
+      if (!el) {
+        el = document.createElement('meta');
+        const m = selector.match(/\[([^=]+)=['"](.*?)['"]\]/);
+        if (m) el.setAttribute(m[1], m[2]);
+        document.head.appendChild(el);
+      }
+      el.setAttribute(attr, value);
+    };
+
     if (vendor) {
+      const title = `${vendor.shop_name} — Shop on ShopLink.vi`;
+      const desc  = `Browse and order from ${vendor.shop_name}. Orders go straight to WhatsApp.`;
+      const img   = vendor.logo_url || 'https://shoplinkvi.com/og-default.png';
+      const url   = window.location.href;
+
       document.title = `${vendor.shop_name} | ShopLink.vi`;
+      setMeta('meta[property="og:title"]',       'content', title);
+      setMeta('meta[property="og:description"]', 'content', desc);
+      setMeta('meta[property="og:image"]',       'content', img);
+      setMeta('meta[property="og:url"]',         'content', url);
+      setMeta('meta[name="twitter:title"]',      'content', title);
+      setMeta('meta[name="twitter:image"]',      'content', img);
+      setMeta('meta[name="description"]',        'content', desc);
     } else {
       document.title = "Storefront | ShopLink.vi";
     }
 
-    // Cleanup: Reset title when navigating away
-    return () => {
-      document.title = "ShopLink.vi";
-    };
+    return () => { document.title = "ShopLink.vi"; };
   }, [vendor]);
 
   // Cart persistence
