@@ -278,7 +278,17 @@ export default function Onboarding({ user, setUser }) {
         throw new Error(vendorError.message);
       }
 
-      if (refCode) sessionStorage.removeItem('shoplink_ref');
+      if (refCode) {
+        // Write to immutable referral ledger.
+        // Unique constraint on (referrer_slug, referred_email) silently blocks farming
+        // if this email re-registers with the same referral code later.
+        await supabase.from('referrals').insert({
+          referrer_slug:    refCode,
+          referred_user_id: vendor.id,
+          referred_email:   user.email || vendor.id,
+        });
+        sessionStorage.removeItem('shoplink_ref');
+      }
       setUser({ ...user, vendor });
       toast.success('Your store is live!');
       setTimeout(() => navigate('/dashboard'), 900);

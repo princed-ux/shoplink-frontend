@@ -160,8 +160,9 @@ export default function Storefront() {
   const [cart, setCart]                       = useState({});
   const [variantSelections, setVariantSelections] = useState({});
   const [loading, setLoading]   = useState(true);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [showInfo, setShowInfo]       = useState(false);
+  const [searchQuery, setSearchQuery]       = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('all');
+  const [showInfo, setShowInfo]             = useState(false);
   const [showLogoModal, setShowLogoModal] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [activeImageIndex, setActiveImageIndex] = useState(0);
@@ -431,10 +432,13 @@ export default function Storefront() {
   const vendorCurrency = getCurrency(vendorCountry);
   const currencySymbol = getCurrencySymbol(vendorCurrency);
   const styles   = getThemeStyles(theme);
-  const filtered = products.filter(p =>
-    p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (p.description && p.description.toLowerCase().includes(searchQuery.toLowerCase()))
-  );
+  const vendorCategories = isPro ? (vendor.categories || []) : [];
+  const filtered = products.filter(p => {
+    const matchesSearch = p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (p.description && p.description.toLowerCase().includes(searchQuery.toLowerCase()));
+    const matchesCategory = selectedCategory === 'all' || p.category === selectedCategory;
+    return matchesSearch && matchesCategory;
+  });
   const totalItems = Object.values(cart).reduce((a, b) => a + b, 0);
   const totalPrice = products.reduce((sum, p) => sum + p.price * (cart[p.id] || 0), 0);
 
@@ -506,12 +510,41 @@ export default function Storefront() {
                 </button>
               )}
             </div>
+
           </div>
         </div>
       </div>
 
+      {/* ── CATEGORY FILTER TABS — sits between shop card and product grid ── */}
+      {vendorCategories.length > 0 && (
+        <div className="relative max-w-4xl mx-auto px-4 mt-6 z-10">
+          <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
+            <button
+              onClick={() => setSelectedCategory('all')}
+              className={`flex-shrink-0 px-4 py-2 rounded-full text-xs font-black transition-all border ${
+                selectedCategory === 'all'
+                  ? (styles.isDark ? 'bg-white text-slate-900 border-white' : 'bg-slate-900 text-white border-slate-900')
+                  : (styles.isDark ? 'bg-white/10 text-white/70 border-white/10 hover:bg-white/20' : 'bg-white text-slate-600 border-slate-200 hover:border-slate-400 shadow-sm')
+              }`}>
+              All
+            </button>
+            {vendorCategories.map(cat => (
+              <button key={cat}
+                onClick={() => setSelectedCategory(cat)}
+                className={`flex-shrink-0 px-4 py-2 rounded-full text-xs font-black transition-all border ${
+                  selectedCategory === cat
+                    ? 'bg-emerald-500 text-white border-emerald-500 shadow-lg shadow-emerald-500/30'
+                    : (styles.isDark ? 'bg-white/10 text-white/70 border-white/10 hover:bg-white/20' : 'bg-white text-slate-600 border-slate-200 hover:border-emerald-400 hover:text-emerald-600 shadow-sm')
+                }`}>
+                {cat}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* ── PRODUCTS ── */}
-      <main className="px-4 mt-10 max-w-4xl mx-auto relative z-10 flex flex-col min-h-[50vh]">
+      <main className={`px-4 max-w-4xl mx-auto relative z-10 flex flex-col min-h-[50vh] ${vendorCategories.length > 0 ? 'mt-6' : 'mt-10'}`}>
         {products.length === 0 ? (
           <div className={`text-center py-24 ${styles.isDark ? 'bg-white/5 border-white/10' : 'bg-white/50 border-slate-100'} backdrop-blur-sm rounded-[2.5rem] border border-dashed mx-2`}>
             <Store size={32} className={`mx-auto mb-4 ${styles.isDark ? 'text-white/20' : 'text-slate-300'}`} />
@@ -522,7 +555,7 @@ export default function Storefront() {
           <>
             <div className="flex items-center justify-between mb-6 px-2">
               <h2 className={`text-xl font-black tracking-tight flex items-center gap-2 ${styles.cardText}`}>
-                Latest Arrivals
+                {selectedCategory === 'all' ? 'Latest Arrivals' : selectedCategory}
                 <span className={`text-[10px] px-2 py-1 rounded-full shadow-sm border ${styles.isDark ? 'bg-white/10 border-white/10 text-white/60' : 'bg-white text-slate-500 border-slate-100'}`}>
                   {filtered.length}
                 </span>
@@ -684,12 +717,12 @@ export default function Storefront() {
       {/* ── POWERED BY BAR — full-width bottom strip, hidden when checkout bar is open ── */}
       {!(isPro || isPremium) && totalItems === 0 && (
         <div className="fixed left-0 right-0 z-30 bottom-0">
-          <Link to="/"
+          <a href="https://shoplinkvi.com" target="_blank" rel="noopener noreferrer"
             className={`flex items-center justify-center gap-2 w-full py-3 text-[10px] font-black uppercase tracking-widest border-t backdrop-blur-md transition-colors
               ${styles.isDark ? 'bg-slate-900/90 border-white/10 text-white/50 hover:text-white/70' : 'bg-white/95 border-slate-200/80 text-slate-400 hover:text-slate-600'}`}>
             <Zap size={11} className="text-emerald-500 flex-shrink-0" />
             Powered by ShopLink.vi
-          </Link>
+          </a>
         </div>
       )}
 

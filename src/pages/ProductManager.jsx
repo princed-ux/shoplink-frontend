@@ -1,18 +1,19 @@
 import { useState, useRef, useEffect } from 'react';
-import { Plus, Loader2, ShoppingBag, ImageIcon, Pencil, Trash2, UploadCloud, Lock, FileUp, X, CheckCircle2, AlertTriangle, Zap, Package2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Plus, Loader2, ShoppingBag, ImageIcon, Pencil, Trash2, UploadCloud, Lock, FileUp, X, CheckCircle2, AlertTriangle, Zap, Package2, ChevronLeft, ChevronRight, ChevronDown, Layers } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import Papa from 'papaparse';
 import { supabase } from '../supabaseClient';
 import { getCurrency } from '../data/countries';
-import { getCurrencySymbol, hasPlan, MAX_PRODUCT_IMAGES, GIF_ENABLED, MAX_GIF_PER_PRODUCT } from '../data/plans';
+import { getCurrencySymbol, hasPlan, MAX_PRODUCT_IMAGES, GIF_ENABLED, MAX_GIF_PER_PRODUCT, MAX_CATEGORIES } from '../data/plans';
 import { resolveColor } from '../data/colors';
 
 export default function ProductManager({ user, setUser }) {
   const isPaidUser    = hasPlan(user?.vendor, 'pro');
   const isPremiumUser = hasPlan(user?.vendor, 'premium');
   const effectivePlan = isPremiumUser ? 'premium' : isPaidUser ? 'pro' : 'free';
-  const maxImages = MAX_PRODUCT_IMAGES[effectivePlan];
-  const maxGifs   = MAX_GIF_PER_PRODUCT[effectivePlan];
+  const maxImages     = MAX_PRODUCT_IMAGES[effectivePlan];
+  const maxGifs       = MAX_GIF_PER_PRODUCT[effectivePlan];
+  const maxCategories = MAX_CATEGORIES[effectivePlan];
   const pmCurrency = getCurrency(user?.vendor?.country || 'NG');
   const pmSymbol = getCurrencySymbol(pmCurrency);
 
@@ -21,6 +22,13 @@ export default function ProductManager({ user, setUser }) {
   const [stock, setStock]                   = useState('');
   const [description, setDescription]       = useState('');
   const [variants, setVariants]             = useState([]);
+  const [category, setCategory]               = useState('');
+  const [vendorCategories, setVendorCategories] = useState(user?.vendor?.categories || []);
+  const [showCategoryModal, setShowCategoryModal] = useState(false);
+  const [multiCatInput, setMultiCatInput]     = useState('');
+  const [catSaving, setCatSaving]             = useState(false);
+  const [catPickerOpen, setCatPickerOpen]     = useState(false);
+  const [catSearch, setCatSearch]             = useState('');
   // Each entry: { url: string (blob or Supabase URL), file: File|null }
   const [pendingImages, setPendingImages]   = useState([]);
   const [loading, setLoading]               = useState(false);
@@ -141,6 +149,7 @@ export default function ProductManager({ user, setUser }) {
     setStock('');
     setDescription('');
     setVariants([]);
+    setCategory('');
     setEditingId(null);
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
@@ -172,10 +181,11 @@ export default function ProductManager({ user, setUser }) {
       const stockVal = isPaidUser && stock !== '' ? Number(stock) : -1;
       const variantsVal = variants.filter(v => v.name && v.options.some(o => o.trim()));
 
+      const categoryVal = isPaidUser ? (category || null) : null;
       if (editingId) {
         const { data, error } = await supabase
           .from('products')
-          .update({ name, price: Number(price), stock: stockVal, description, variants: variantsVal, image_url: imageUrl, image_urls: finalUrls })
+          .update({ name, price: Number(price), stock: stockVal, description, variants: variantsVal, image_url: imageUrl, image_urls: finalUrls, category: categoryVal })
           .eq('id', editingId)
           .eq('vendor_id', user.vendor.id)
           .select()
@@ -186,7 +196,7 @@ export default function ProductManager({ user, setUser }) {
       } else {
         const { data, error } = await supabase
           .from('products')
-          .insert({ vendor_id: user.vendor.id, name, price: Number(price), stock: stockVal, description, variants: variantsVal, image_url: imageUrl, image_urls: finalUrls })
+          .insert({ vendor_id: user.vendor.id, name, price: Number(price), stock: stockVal, description, variants: variantsVal, image_url: imageUrl, image_urls: finalUrls, category: categoryVal })
           .select()
           .single();
         if (error) throw error;
@@ -298,12 +308,48 @@ export default function ProductManager({ user, setUser }) {
     }
   };
 
+  const handleAddCategory = async () => {
+    const raw = multiCatInput.split(',').map(s => s.trim()).filter(Boolean);
+    if (raw.length === 0) return;
+    const existing = vendorCategories.map(c => c.toLowerCase());
+    const toAdd = [...new Set(raw.filter(n => !existing.includes(n.toLowerCase())))];
+    if (toAdd.length === 0) { toast.error('All categories already exist'); return; }
+    const limit = isPremiumUser ? Infinity : maxCategories;
+    if (vendorCategories.length + toAdd.length > limit) {
+      toast.error(`Adding these would exceed your ${isPremiumUser ? 'unlimited' : `${maxCategories}`} category limit`); return;
+    }
+    setCatSaving(true);
+    const updated = [...vendorCategories, ...toAdd];
+    try {
+      const { error } = await supabase.from('vendors').update({ categories: updated }).eq('id', user.vendor.id);
+      if (error) throw error;
+      setVendorCategories(updated);
+      setUser({ ...user, vendor: { ...user.vendor, categories: updated } });
+      setMultiCatInput('');
+      toast.success(`${toAdd.length} categor${toAdd.length > 1 ? 'ies' : 'y'} added`);
+    } catch { toast.error('Failed to save categories'); }
+    finally { setCatSaving(false); }
+  };
+
+  const handleRemoveCategory = async (cat) => {
+    const updated = vendorCategories.filter(c => c !== cat);
+    try {
+      const { error } = await supabase.from('vendors').update({ categories: updated }).eq('id', user.vendor.id);
+      if (error) throw error;
+      setVendorCategories(updated);
+      setUser({ ...user, vendor: { ...user.vendor, categories: updated } });
+      if (category === cat) setCategory('');
+      toast.success(`"${cat}" removed`);
+    } catch { toast.error('Failed to remove category'); }
+  };
+
   const startEdit = (product) => {
     setName(product.name);
     setPrice(product.price);
     setStock(product.stock != null && product.stock >= 0 ? String(product.stock) : '');
     setDescription(product.description || '');
     setVariants(Array.isArray(product.variants) && product.variants.length > 0 ? product.variants : []);
+    setCategory(product.category || '');
     const existingUrls = product.image_urls?.length ? product.image_urls : product.image_url ? [product.image_url] : [];
     setPendingImages(existingUrls.map(url => ({ url, file: null })));
     setEditingId(product.id);
@@ -378,6 +424,31 @@ export default function ProductManager({ user, setUser }) {
                 <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-2 transition-colors group-focus-within:text-emerald-500">Description (Optional)</label>
                 <textarea maxLength={250} className={`${inputCls} resize-none h-24`} placeholder="Describe your product..." value={description} onChange={e => setDescription(e.target.value)} />
               </div>
+
+              {/* ── CATEGORY DROPDOWN ── */}
+              {isPaidUser && (
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-2">
+                    Category <span className="text-slate-400 dark:text-slate-600 font-normal normal-case">optional</span>
+                  </label>
+                  {vendorCategories.length > 0 ? (
+                    <button type="button" onClick={() => { setCatPickerOpen(true); setCatSearch(''); }}
+                      className={`w-full flex items-center justify-between px-5 py-4 bg-slate-50/50 dark:bg-slate-900/50 border-2 rounded-2xl outline-none transition-all group cursor-pointer ${
+                        catPickerOpen ? 'border-emerald-500 dark:border-emerald-500 ring-4 ring-emerald-500/10' : 'border-slate-100 dark:border-slate-800 hover:border-emerald-400 dark:hover:border-emerald-500/60'
+                      }`}>
+                      <span className={`font-bold text-sm ${category ? 'text-slate-800 dark:text-white' : 'text-slate-400 dark:text-slate-500'}`}>
+                        {category || 'Select a category'}
+                      </span>
+                      <ChevronDown size={16} className={`transition-all duration-200 ${catPickerOpen ? 'text-emerald-500 rotate-180' : 'text-slate-400 dark:text-slate-500 group-hover:text-emerald-500'}`} />
+                    </button>
+                  ) : (
+                    <button type="button" onClick={() => setShowCategoryModal(true)}
+                      className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold hover:underline ml-2">
+                      Set up categories first →
+                    </button>
+                  )}
+                </div>
+              )}
 
               {isPaidUser && (
                 <div className="space-y-3 pt-2">
@@ -554,13 +625,27 @@ export default function ProductManager({ user, setUser }) {
               <h3 className="font-black text-slate-400 dark:text-slate-500 text-[10px] uppercase tracking-[0.2em]">Your Inventory</h3>
               <span className="bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-[10px] font-bold px-2 py-0.5 rounded-md transition-colors">{products.length}</span>
             </div>
-            {isPaidUser && products.length > 0 && (
-              <button
-                onClick={() => { setSelectionMode(v => !v); setSelectedIds(new Set()); setBulkRestockVal(''); setRestockId(null); setRestockVal(''); }}
-                className={`text-[10px] font-black uppercase tracking-wider px-3 py-1.5 rounded-xl flex items-center gap-1.5 transition-all ${selectionMode ? 'bg-red-100 dark:bg-red-500/10 text-red-500' : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 hover:text-emerald-600 dark:hover:text-emerald-400'}`}>
-                {selectionMode ? <><X size={11} /> Cancel</> : <><Package2 size={11} /> Manage Stock</>}
-              </button>
-            )}
+            <div className="flex items-center gap-2">
+              {isPaidUser && (
+                <button
+                  onClick={() => setShowCategoryModal(true)}
+                  className="text-[10px] font-black uppercase tracking-wider px-3 py-1.5 rounded-xl flex items-center gap-1.5 transition-all bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:border-emerald-400 hover:text-emerald-600 dark:hover:border-emerald-500/60 dark:hover:text-emerald-400 shadow-sm active:scale-95">
+                  <Layers size={11} /> Categories
+                  {vendorCategories.length > 0 && (
+                    <span className="bg-emerald-100 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-[9px] font-black px-1.5 py-0.5 rounded-md -ml-0.5">
+                      {vendorCategories.length}
+                    </span>
+                  )}
+                </button>
+              )}
+              {isPaidUser && products.length > 0 && (
+                <button
+                  onClick={() => { setSelectionMode(v => !v); setSelectedIds(new Set()); setBulkRestockVal(''); setRestockId(null); setRestockVal(''); }}
+                  className={`text-[10px] font-black uppercase tracking-wider px-3 py-1.5 rounded-xl flex items-center gap-1.5 transition-all border shadow-sm active:scale-95 ${selectionMode ? 'bg-red-50 dark:bg-red-500/10 text-red-500 border-red-200 dark:border-red-500/30' : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:border-emerald-400 hover:text-emerald-600 dark:hover:border-emerald-500/60 dark:hover:text-emerald-400'}`}>
+                  {selectionMode ? <><X size={11} /> Cancel</> : <><Package2 size={11} /> Manage Stock</>}
+                </button>
+              )}
+            </div>
           </div>
           {selectionMode && products.length > 0 && (
             <div className="flex flex-wrap items-center gap-2 mb-4 px-2">
@@ -639,6 +724,11 @@ export default function ProductManager({ user, setUser }) {
 
                   <div className="px-2 pb-1 flex-1 flex flex-col">
                     <h4 className="font-black text-slate-900 dark:text-white truncate text-base mb-1 transition-colors">{p.name}</h4>
+                    {p.category && (
+                      <span className="self-start text-[9px] font-black text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/10 px-2 py-0.5 rounded-md mb-1.5 border border-emerald-100 dark:border-emerald-500/20">
+                        {p.category}
+                      </span>
+                    )}
                     {p.description && <p className="text-[10px] text-slate-400 dark:text-slate-500 line-clamp-1 mb-4 font-medium transition-colors">{p.description}</p>}
                     
                     <div className="flex items-center justify-between mt-auto pt-2 border-t border-slate-50 dark:border-slate-800/50 transition-colors">
@@ -1200,6 +1290,131 @@ export default function ProductManager({ user, setUser }) {
                   Cancel
                 </button>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── CATEGORY PICKER MINI MODAL ── */}
+        {catPickerOpen && (
+          <div className="fixed inset-0 z-[250] flex items-center justify-center p-4 bg-black/30 backdrop-blur-sm"
+            onClick={() => { setCatPickerOpen(false); setCatSearch(''); }}>
+            <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-100 dark:border-slate-800 w-full max-w-xs overflow-hidden animate-in zoom-in-95 duration-150"
+              onClick={e => e.stopPropagation()}>
+              <div className="p-4 border-b border-slate-100 dark:border-slate-800">
+                <input
+                  autoFocus
+                  placeholder="Search categories..."
+                  value={catSearch}
+                  onChange={e => setCatSearch(e.target.value)}
+                  className="w-full bg-slate-50 dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm font-bold outline-none focus:border-emerald-500 dark:focus:border-emerald-500 text-slate-800 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 transition-all"
+                />
+              </div>
+              <div className="max-h-56 overflow-y-auto">
+                <button type="button"
+                  onClick={() => { setCategory(''); setCatPickerOpen(false); setCatSearch(''); }}
+                  className={`w-full text-left px-4 py-3.5 text-sm font-bold transition-colors border-b border-slate-50 dark:border-slate-800/50 ${
+                    category === '' ? 'text-emerald-600 dark:text-emerald-400 bg-emerald-50/60 dark:bg-emerald-500/8' : 'text-slate-400 dark:text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800'
+                  }`}>
+                  No category
+                </button>
+                {vendorCategories
+                  .filter(c => c.toLowerCase().includes(catSearch.toLowerCase()))
+                  .map(cat => (
+                    <button key={cat} type="button"
+                      onClick={() => { setCategory(cat); setCatPickerOpen(false); setCatSearch(''); }}
+                      className={`w-full text-left px-4 py-3.5 text-sm font-bold transition-colors border-b border-slate-50 dark:border-slate-800/50 last:border-0 ${
+                        category === cat ? 'text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/10' : 'text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800'
+                      }`}>
+                      {cat}
+                    </button>
+                  ))}
+                {catSearch && vendorCategories.filter(c => c.toLowerCase().includes(catSearch.toLowerCase())).length === 0 && (
+                  <p className="text-center text-xs text-slate-400 dark:text-slate-500 py-6">No match for "{catSearch}"</p>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── CATEGORY MANAGER MODAL ── */}
+        {showCategoryModal && (
+          <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-sm animate-in fade-in duration-200"
+            onClick={() => setShowCategoryModal(false)}>
+            <div className="bg-white dark:bg-slate-900 rounded-[2.5rem] w-full max-w-md shadow-2xl border border-slate-100 dark:border-slate-800 overflow-hidden animate-in zoom-in-95 duration-200"
+              onClick={e => e.stopPropagation()}>
+              {/* Header */}
+              <div className="relative p-6 pb-4 border-b border-slate-100 dark:border-slate-800">
+                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-emerald-500 to-emerald-400 rounded-t-[2.5rem]" />
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded-2xl flex items-center justify-center">
+                      <Layers size={18} />
+                    </div>
+                    <div>
+                      <h3 className="font-black text-slate-900 dark:text-white text-base tracking-tight">Product Categories</h3>
+                      <p className="text-[10px] text-slate-400 font-medium">
+                        {vendorCategories.length}/{isPremiumUser ? '∞' : maxCategories} used · {isPremiumUser ? 'Unlimited' : 'Pro: up to 10'}
+                      </p>
+                    </div>
+                  </div>
+                  <button onClick={() => setShowCategoryModal(false)}
+                    className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-all">
+                    <X size={15} />
+                  </button>
+                </div>
+              </div>
+
+              {/* Existing categories */}
+              <div className="p-6 max-h-48 overflow-y-auto">
+                {vendorCategories.length === 0 ? (
+                  <div className="text-center py-6">
+                    <div className="w-12 h-12 bg-slate-50 dark:bg-slate-800 rounded-2xl flex items-center justify-center mx-auto mb-3">
+                      <Layers size={20} className="text-slate-300 dark:text-slate-600" />
+                    </div>
+                    <p className="text-sm font-bold text-slate-400">No categories yet</p>
+                    <p className="text-[11px] text-slate-300 dark:text-slate-600 mt-1">Add some below to get started</p>
+                  </div>
+                ) : (
+                  <div className="flex flex-wrap gap-2">
+                    {vendorCategories.map(cat => (
+                      <div key={cat} className="flex items-center gap-1.5 bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-100 dark:border-emerald-500/20 text-emerald-700 dark:text-emerald-400 px-3 py-1.5 rounded-full text-xs font-black">
+                        {cat}
+                        <button onClick={() => handleRemoveCategory(cat)}
+                          className="w-4 h-4 flex items-center justify-center text-emerald-400 hover:text-red-500 transition-colors -mr-0.5">
+                          <X size={11} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Multi-add section */}
+              {(isPremiumUser || vendorCategories.length < maxCategories) && (
+                <div className="px-6 pb-6 border-t border-slate-100 dark:border-slate-800 pt-4 space-y-3">
+                  <div>
+                    <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">Add categories</label>
+                    <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">Separate multiple with commas e.g. <em>Tops, Shoes, Bags</em></p>
+                  </div>
+                  <div className="flex gap-2">
+                    <input
+                      className="flex-1 px-4 py-3 bg-slate-50 dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 rounded-2xl outline-none focus:border-emerald-500 dark:focus:border-emerald-500 text-sm font-bold text-slate-800 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 transition-all"
+                      placeholder="e.g. Tops, Shoes, Bags"
+                      value={multiCatInput}
+                      onChange={e => setMultiCatInput(e.target.value)}
+                      onKeyDown={e => e.key === 'Enter' && handleAddCategory()}
+                      maxLength={200}
+                    />
+                    <button onClick={handleAddCategory} disabled={catSaving || !multiCatInput.trim()}
+                      className="px-5 py-3 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-40 text-white rounded-2xl text-xs font-black uppercase tracking-wider transition-all active:scale-95 whitespace-nowrap">
+                      {catSaving ? '...' : '+ Add'}
+                    </button>
+                  </div>
+                  {!isPremiumUser && vendorCategories.length >= maxCategories && (
+                    <p className="text-[10px] text-amber-500 font-bold">You've reached the 10 category limit on Pro. Upgrade to Premium for unlimited.</p>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         )}

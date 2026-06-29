@@ -11,6 +11,7 @@ export const PLAN_LEVELS = { free: 0, pro: 1, premium: 2 };
 export const MAX_PRODUCT_IMAGES = { free: 1, pro: 5, premium: 10 };
 export const GIF_ENABLED        = { free: false, pro: false, premium: true };
 export const MAX_GIF_PER_PRODUCT = { free: 0, pro: 0, premium: 1 };
+export const MAX_CATEGORIES      = { free: 0, pro: 10, premium: Infinity };
 
 export function isSubscriptionActive(vendor) {
   if (!vendor?.plan_expires_at) return true; // free plan has no expiry
@@ -221,6 +222,7 @@ export const SUBSCRIPTION_PLANS = [
       'Advanced analytics — 30-day charts, best sales day, fulfillment rate',
       '📦 Stock & inventory tracking — know how many items are left',
       '🏷️ Product variants (size, color, options)',
+      '🗂️ Product categories — up to 10 (with storefront filter tabs)',
       '⚡ Quick Multi-Add — add up to 10 products at once',
     ],
     color: 'bg-white border-emerald-100 text-slate-900',
@@ -247,6 +249,7 @@ export const SUBSCRIPTION_PLANS = [
       '8 exclusive Premium themes (Royal, Diamond, Galaxy, Cyber City, Golden Empire, Arctic Crystal, Volcano, Luxury Black)',
       'Premium analytics — 90-day history, avg order value, monthly revenue trends',
       'Custom checkout message shown to customers when ordering',
+      '🗂️ Unlimited product categories',
       '📥 Bulk product import via CSV',
     ],
     color: 'bg-slate-900 border-slate-900 text-white',

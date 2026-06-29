@@ -128,11 +128,22 @@ export default function ReferralPage({ user, setUser }) {
       if (!vendor?.slug) { setLoading(false); return; }
       setLoading(true);
       try {
-        const { data } = await supabase
-          .from('vendors').select('id, plan_type')
-          .eq('referred_by', vendor.slug);
-        const total  = data?.length || 0;
-        const paying = data?.filter(v => v.plan_type === 'pro' || v.plan_type === 'premium').length || 0;
+        // Count from immutable ledger — persists even if referred vendor later deletes account
+        const { data: refRows } = await supabase
+          .from('referrals').select('referred_user_id')
+          .eq('referrer_slug', vendor.slug);
+        const total = refRows?.length || 0;
+
+        // Paying count: cross-check live vendors (correct — deleted vendors are no longer paying)
+        const referredIds = (refRows || []).map(r => r.referred_user_id);
+        let paying = 0;
+        if (referredIds.length > 0) {
+          const { data: payingRows } = await supabase
+            .from('vendors').select('id')
+            .in('id', referredIds)
+            .in('plan_type', ['pro', 'premium']);
+          paying = payingRows?.length || 0;
+        }
         setStats({ total, paying });
         await applyRewards(total, paying, vendor?.referral_claimed_tier ?? 0, vendor);
       } finally {
