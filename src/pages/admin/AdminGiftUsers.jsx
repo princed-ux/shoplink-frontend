@@ -85,6 +85,13 @@ export default function AdminGiftUsers() {
 
       if (error) throw error;
 
+      // Unlock products stuck at stock=0 from when they were on the free plan.
+      // stock=-1 means unlimited; prevents all products showing "out of stock" after gift.
+      await supabase.from('products')
+        .update({ stock: -1 })
+        .eq('vendor_id', giftTarget.id)
+        .eq('stock', 0);
+
       toast.success(`🎁 Gifted ${giftPlan.charAt(0).toUpperCase() + giftPlan.slice(1)} to ${giftTarget.shop_name || giftTarget.email}!`);
       setGiftTarget(null);
       fetchFreeUsers();

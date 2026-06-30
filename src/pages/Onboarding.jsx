@@ -159,6 +159,7 @@ export default function Onboarding({ user, setUser }) {
   const [logoFile, setLogoFile]       = useState(null);
   const [logoPreview, setLogoPreview] = useState(null);
   const [slugStatus, setSlugStatus]   = useState('idle');
+  const [suggestions, setSuggestions] = useState([]);
 
   // IP geolocation to auto-detect country
   useEffect(() => {
@@ -196,6 +197,22 @@ export default function Onboarding({ user, setUser }) {
     }, 500);
     return () => clearTimeout(t);
   }, [slug]);
+
+  useEffect(() => {
+    if (slugStatus !== 'taken' || !slug) { setSuggestions([]); return; }
+    let cancelled = false;
+    (async () => {
+      const base = slug.replace(/-?\d+$/, '');
+      const candidates = [
+        `${base}1`, `${base}-store`, `${base}2`, `${base}-shop`, `${base}3`, `my-${base}`,
+      ].filter(c => c.length >= 3 && c.length <= 24);
+      const { data } = await supabase.from('vendors').select('slug').in('slug', candidates);
+      if (cancelled) return;
+      const takenSet = new Set((data || []).map(v => v.slug));
+      setSuggestions(candidates.filter(c => !takenSet.has(c)).slice(0, 3));
+    })();
+    return () => { cancelled = true; };
+  }, [slugStatus, slug]);
 
   const handleSlugChange = (e) =>
     setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '').slice(0, 24));
@@ -250,6 +267,9 @@ export default function Onboarding({ user, setUser }) {
 
       const refCode = sessionStorage.getItem('shoplink_ref') || null;
 
+      const { data: { user: authUser } } = await supabase.auth.getUser();
+      const authProvider = authUser?.identities?.some(i => i.provider === 'google') ? 'google' : 'email';
+
       const { data: vendor, error: vendorError } = await supabase
         .from('vendors')
         .insert({
@@ -268,6 +288,7 @@ export default function Onboarding({ user, setUser }) {
           is_suspended:    false,
           signup_platform: 'web',
           referred_by:     refCode,
+          auth_provider:   authProvider,
         })
         .select()
         .single();
@@ -456,6 +477,18 @@ export default function Onboarding({ user, setUser }) {
                     )}
                     {slugStatus === 'taken' && (
                       <p className="text-xs text-red-500 font-bold ml-1 animate-in fade-in">That link is taken. Try something else.</p>
+                    )}
+                    {slugStatus === 'taken' && suggestions.length > 0 && (
+                      <div className="flex flex-wrap items-center gap-2 mt-1 animate-in fade-in">
+                        <span className="text-xs text-slate-400 ml-1">Try:</span>
+                        {suggestions.map(s => (
+                          <button key={s} type="button"
+                            onClick={() => { setSlug(s); setSuggestions([]); }}
+                            className="px-3 py-1 text-xs bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/20 rounded-full hover:bg-emerald-100 dark:hover:bg-emerald-500/20 transition-colors font-bold">
+                            {s}
+                          </button>
+                        ))}
+                      </div>
                     )}
                     <p className="text-[11px] text-slate-400 dark:text-slate-500 font-medium ml-1">Letters, numbers and hyphens · Max 24 characters</p>
                   </div>

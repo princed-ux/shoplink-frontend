@@ -30,7 +30,7 @@ export default function BillingSettings({ user, setUser }) {
   const FAQ_ITEMS = [
     {
       q: 'What is the difference between Free, Pro, and Premium?',
-      a: 'Free gives you a full working store — unlimited products, WhatsApp checkout, and a shareable link — forever, no card needed. Pro adds custom themes, a verified store badge, and advanced analytics. Premium includes everything in Pro plus AI-powered auto-replies on WhatsApp and priority support. You can stay on Free as long as you like.',
+      a: 'Free gives you a full working store — unlimited products, WhatsApp checkout, and a shareable link — forever, no card needed. Pro adds custom themes, a verified store badge, and advanced analytics. Premium includes everything in Pro plus auto WhatsApp replies to customers (order confirmation) and priority support. You can stay on Free as long as you like.',
     },
     {
       q: 'What happens when I upgrade from Pro to Premium?',

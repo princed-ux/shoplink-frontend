@@ -77,10 +77,10 @@ const FAQS = [
 ];
 
 const GUIDES = [
-  { icon: Camera, title: 'Take better product photos', desc: 'Natural light, clean background, multiple angles.', time: '3 min read' },
-  { icon: PenTool, title: 'Write product descriptions that sell', desc: 'Include size, material, colour and what makes it special.', time: '5 min read' },
-  { icon: TrendingUp, title: 'Grow your store on Instagram', desc: 'Post daily Stories with your link in bio strategy.', time: '7 min read' },
-  { icon: Smartphone, title: 'Handle WhatsApp orders like a pro', desc: 'Quick replies, payment confirmation, delivery updates.', time: '4 min read' },
+  { icon: Camera, title: 'Take better product photos', desc: 'Natural light, clean background, multiple angles.' },
+  { icon: PenTool, title: 'Write product descriptions that sell', desc: 'Include size, material, colour and what makes it special.' },
+  { icon: TrendingUp, title: 'Grow your store on Instagram', desc: 'Post daily Stories with your link in bio strategy.' },
+  { icon: Smartphone, title: 'Handle WhatsApp orders like a pro', desc: 'Quick replies, payment confirmation, delivery updates.' },
 ];
 
 export default function HelpCenter({ user }) {
@@ -285,8 +285,7 @@ export default function HelpCenter({ user }) {
                 <g.icon size={18} className="text-slate-400 dark:text-slate-500 group-hover:text-white transition-colors" />
               </div>
               <p className="font-black text-slate-900 dark:text-white text-base mb-2 group-hover:text-emerald-700 dark:group-hover:text-emerald-400 transition-colors">{g.title}</p>
-              <p className="text-sm text-slate-500 dark:text-slate-400 font-medium mb-4 leading-relaxed">{g.desc}</p>
-              <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">{g.time}</span>
+              <p className="text-sm text-slate-500 dark:text-slate-400 font-medium leading-relaxed">{g.desc}</p>
             </div>
           ))}
         </div>

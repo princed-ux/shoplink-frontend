@@ -790,8 +790,8 @@ export default function Storefront() {
                   </div>
                   <p className={`text-xs font-medium leading-relaxed ${styles.cardSubtext}`}>
                     {isPremium
-                      ? 'This store is a Premium verified business with advanced branding and verification status.'
-                      : 'This store has completed additional verification and is recognised as a trusted seller.'}
+                      ? 'This store is on the ShopLink.vi Premium plan with access to all features including extended galleries and premium analytics.'
+                      : 'This store is on the ShopLink.vi Pro plan, which includes a verified badge, advanced themes, and analytics.'}
                   </p>
                 </div>
               )}

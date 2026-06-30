@@ -31,6 +31,14 @@ export async function activatePlan(plan, user, billingCycle = 'monthly') {
       .update(updatePayload)
       .eq('id', user.vendor.id);
 
+    // Unlock products that were left at stock=0 (free plan default) so they
+    // don't all appear as "out of stock" after upgrading to a paid plan.
+    await supabase
+      .from('products')
+      .update({ stock: -1 })
+      .eq('vendor_id', user.vendor.id)
+      .eq('stock', 0);
+
     const saved   = JSON.parse(localStorage.getItem('quickshop_user') || '{}');
     const updated = {
       ...saved,
